@@ -88,6 +88,8 @@ export const plansApi = {
   getRoutes: (id: string) => api.get(`/plans/${id}/routes`),
   create: (data: any) => api.post('/plans', data),
   activate: (id: string) => api.post(`/plans/${id}/activate`),
+};
+
 // Trips API
 export const tripsApi = {
   getAll: (params?: any) => api.get('/trips', { params }),
@@ -95,8 +97,6 @@ export const tripsApi = {
   start: (id: string) => api.post(`/trips/${id}/start`),
   complete: (id: string) => api.post(`/trips/${id}/complete`),
   updateStatus: (id: string, status: string) => api.patch(`/trips/${id}/status`, { status }),
-};start: (id: string) => api.post(`/trips/${id}/start`),
-  complete: (id: string) => api.post(`/trips/${id}/complete`),
 };
 
 // Dashboard API

@@ -39,3 +39,5 @@ osrm-data/
 # Misc
 *.egg
 *.egg-info/
+*.pdf
+*.pdf
