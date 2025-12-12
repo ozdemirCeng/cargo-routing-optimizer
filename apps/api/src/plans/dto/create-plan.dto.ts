@@ -1,0 +1,29 @@
+import { IsString, IsEnum, IsOptional, IsDateString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
+
+class PlanParametersDto {
+  @ApiProperty({ required: false, example: 1.0 })
+  @IsOptional()
+  costPerKm?: number;
+
+  @ApiProperty({ required: false, example: 200 })
+  @IsOptional()
+  rentalCost?: number;
+}
+
+export class CreatePlanDto {
+  @ApiProperty({ example: '2025-12-13' })
+  @IsDateString()
+  planDate: string;
+
+  @ApiProperty({ enum: ['unlimited_vehicles', 'limited_vehicles'] })
+  @IsEnum(['unlimited_vehicles', 'limited_vehicles'])
+  problemType: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PlanParametersDto)
+  parameters?: PlanParametersDto;
+}

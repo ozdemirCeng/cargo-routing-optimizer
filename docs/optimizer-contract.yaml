@@ -1,0 +1,518 @@
+# ============================================================
+# KARGO İŞLETME SİSTEMİ - OPTIMIZER JSON CONTRACT
+# Input/Output Specification
+# ============================================================
+
+# Bu dosya Optimizer servisinin (Python FastAPI) kabul ettiği
+# input ve ürettiği output formatlarını tanımlar.
+# NestJS API bu formata göre Optimizer'ı çağırır.
+
+---
+
+# ============================================================
+# OPTIMIZER INPUT (API -> Optimizer)
+# ============================================================
+
+OptimizerInput:
+  description: |
+    Admin "plan oluştur" dediğinde NestJS'in Optimizer'a gönderdiği veri.
+    Ertesi gün için istasyon bazlı kargo bilgisi + araçlar + parametreler.
+  
+  schema:
+    type: object
+    required:
+      - plan_date
+      - problem_type
+      - hub
+      - stations
+      - vehicles
+      - parameters
+      - distance_matrix
+    
+    properties:
+      plan_date:
+        type: string
+        format: date
+        example: "2025-12-13"
+        description: Plan hangi gün için (ertesi gün)
+      
+      problem_type:
+        type: string
+        enum:
+          - unlimited_vehicles  # Sınırsız araç, min maliyet, gerekirse kirala
+          - limited_vehicles    # Belirli araç, min maliyet + max kargo
+        example: "unlimited_vehicles"
+      
+      hub:
+        type: object
+        description: Merkez nokta (Kocaeli Üniversitesi) - tüm araçlar buradan başlayıp buraya döner
+        properties:
+          id:
+            type: string
+            format: uuid
+          name:
+            type: string
+          latitude:
+            type: number
+          longitude:
+            type: number
+        example:
+          id: "10000000-0000-0000-0000-000000000001"
+          name: "Kocaeli Üniversitesi (Merkez Hub)"
+          latitude: 40.8224
+          longitude: 29.9256
+      
+      stations:
+        type: array
+        description: O gün kargo olan istasyonlar (kargo sayısı > 0)
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            code:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            cargo_count:
+              type: integer
+              description: O istasyondaki toplam kargo sayısı
+            total_weight_kg:
+              type: number
+              description: O istasyondaki toplam kargo ağırlığı
+            cargos:
+              type: array
+              description: İstasyondaki kargo detayları (opsiyonel, detaylı analiz için)
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  weight_kg:
+                    type: number
+                  user_id:
+                    type: string
+                    format: uuid
+        example:
+          - id: "10000000-0000-0000-0000-000000000002"
+            name: "Başiskele"
+            code: "BASISKELE"
+            latitude: 40.7167
+            longitude: 29.9333
+            cargo_count: 10
+            total_weight_kg: 120.0
+            cargos:
+              - id: "cargo-uuid-1"
+                weight_kg: 12.0
+                user_id: "user-uuid-1"
+      
+      vehicles:
+        type: array
+        description: Kullanılabilir araçlar
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            plate_number:
+              type: string
+            capacity_kg:
+              type: number
+            ownership:
+              type: string
+              enum: [owned, rented]
+            rental_cost:
+              type: number
+              description: Kiralık ise maliyet (owned için 0)
+        example:
+          - id: "20000000-0000-0000-0000-000000000001"
+            name: "Araç 1 (500 kg)"
+            plate_number: "41 KRG 001"
+            capacity_kg: 500.0
+            ownership: "owned"
+            rental_cost: 0
+          - id: "20000000-0000-0000-0000-000000000002"
+            name: "Araç 2 (750 kg)"
+            plate_number: "41 KRG 002"
+            capacity_kg: 750.0
+            ownership: "owned"
+            rental_cost: 0
+          - id: "20000000-0000-0000-0000-000000000003"
+            name: "Araç 3 (1000 kg)"
+            plate_number: "41 KRG 003"
+            capacity_kg: 1000.0
+            ownership: "owned"
+            rental_cost: 0
+      
+      parameters:
+        type: object
+        description: Maliyet ve kapasite parametreleri
+        properties:
+          cost_per_km:
+            type: number
+            description: Kilometre başına maliyet
+            example: 1.0
+          rental_cost:
+            type: number
+            description: Kiralık araç maliyeti (500kg)
+            example: 200.0
+          rental_capacity_kg:
+            type: number
+            description: Kiralık araç kapasitesi
+            example: 500.0
+      
+      distance_matrix:
+        type: object
+        description: |
+          İstasyonlar arası mesafe matrisi (OSRM'den önceden hesaplanmış).
+          Hub dahil tüm istasyonlar arası mesafeler.
+          Key formatı: "fromId_toId"
+        additionalProperties:
+          type: object
+          properties:
+            distance_km:
+              type: number
+            duration_minutes:
+              type: number
+            polyline:
+              type: string
+              description: Encoded polyline (yol üstünden çizim)
+        example:
+          "10000000-0000-0000-0000-000000000001_10000000-0000-0000-0000-000000000002":
+            distance_km: 8.5
+            duration_minutes: 15.0
+            polyline: "encoded_polyline_string..."
+
+---
+
+# ============================================================
+# OPTIMIZER OUTPUT (Optimizer -> API)
+# ============================================================
+
+OptimizerOutput:
+  description: |
+    Optimizer'ın ürettiği plan çıktısı.
+    Her araç için rota, maliyet, taşınan kargolar ve polyline.
+  
+  schema:
+    type: object
+    properties:
+      success:
+        type: boolean
+        description: Optimizasyon başarılı mı
+      
+      problem_type:
+        type: string
+        enum: [unlimited_vehicles, limited_vehicles]
+      
+      summary:
+        type: object
+        description: Plan özeti
+        properties:
+          total_distance_km:
+            type: number
+            description: Tüm araçların toplam mesafesi
+          total_cost:
+            type: number
+            description: Toplam maliyet (mesafe + kiralama)
+          total_cargos:
+            type: integer
+            description: Toplam taşınan kargo sayısı
+          total_weight_kg:
+            type: number
+            description: Toplam taşınan ağırlık
+          vehicles_used:
+            type: integer
+            description: Kullanılan araç sayısı
+          vehicles_rented:
+            type: integer
+            description: Kiralanan araç sayısı
+          unassigned_cargos:
+            type: integer
+            description: Atanamayan kargo sayısı (limited_vehicles için)
+          unassigned_weight_kg:
+            type: number
+            description: Atanamayan kargo ağırlığı
+        example:
+          total_distance_km: 156.7
+          total_cost: 156.7
+          total_cargos: 113
+          total_weight_kg: 1445.0
+          vehicles_used: 3
+          vehicles_rented: 0
+          unassigned_cargos: 0
+          unassigned_weight_kg: 0
+      
+      routes:
+        type: array
+        description: Araç bazlı rota detayları
+        items:
+          type: object
+          properties:
+            vehicle_id:
+              type: string
+              format: uuid
+            vehicle_name:
+              type: string
+            is_rented:
+              type: boolean
+            
+            route_order:
+              type: integer
+              description: Araç sırası (1, 2, 3...)
+            
+            total_distance_km:
+              type: number
+            total_duration_minutes:
+              type: number
+            distance_cost:
+              type: number
+              description: Mesafe maliyeti
+            rental_cost:
+              type: number
+              description: Kiralama maliyeti (0 veya 200)
+            total_cost:
+              type: number
+              description: Toplam maliyet
+            
+            total_weight_kg:
+              type: number
+            cargo_count:
+              type: integer
+            capacity_utilization:
+              type: number
+              description: Kapasite kullanım oranı (%)
+            
+            route_sequence:
+              type: array
+              description: Ziyaret sırası (Hub -> istasyonlar -> Hub)
+              items:
+                type: object
+                properties:
+                  order:
+                    type: integer
+                  station_id:
+                    type: string
+                    format: uuid
+                  station_name:
+                    type: string
+                  station_code:
+                    type: string
+                  latitude:
+                    type: number
+                  longitude:
+                    type: number
+                  is_hub:
+                    type: boolean
+                  action:
+                    type: string
+                    enum: [start, pickup, end]
+                  cargo_count:
+                    type: integer
+                    description: Bu istasyondan alınan kargo sayısı
+                  weight_kg:
+                    type: number
+                    description: Bu istasyondan alınan ağırlık
+            
+            polyline:
+              type: string
+              description: Tüm rotanın birleşik encoded polyline'ı
+            
+            assigned_cargos:
+              type: array
+              description: Bu araca atanan kargolar
+              items:
+                type: object
+                properties:
+                  cargo_id:
+                    type: string
+                    format: uuid
+                  user_id:
+                    type: string
+                    format: uuid
+                  station_id:
+                    type: string
+                    format: uuid
+                  weight_kg:
+                    type: number
+                  pickup_order:
+                    type: integer
+            
+            users:
+              type: array
+              description: Bu rotadaki kargoların sahip kullanıcıları (unique)
+              items:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    format: uuid
+                  cargo_count:
+                    type: integer
+        
+        example:
+          - vehicle_id: "20000000-0000-0000-0000-000000000001"
+            vehicle_name: "Araç 1 (500 kg)"
+            is_rented: false
+            route_order: 1
+            total_distance_km: 52.3
+            total_duration_minutes: 85.0
+            distance_cost: 52.3
+            rental_cost: 0
+            total_cost: 52.3
+            total_weight_kg: 490.0
+            cargo_count: 38
+            capacity_utilization: 98.0
+            route_sequence:
+              - order: 0
+                station_id: "10000000-0000-0000-0000-000000000001"
+                station_name: "Kocaeli Üniversitesi (Merkez Hub)"
+                station_code: "HUB"
+                latitude: 40.8224
+                longitude: 29.9256
+                is_hub: true
+                action: "start"
+                cargo_count: 0
+                weight_kg: 0
+              - order: 1
+                station_id: "10000000-0000-0000-0000-000000000002"
+                station_name: "Başiskele"
+                station_code: "BASISKELE"
+                latitude: 40.7167
+                longitude: 29.9333
+                is_hub: false
+                action: "pickup"
+                cargo_count: 10
+                weight_kg: 120.0
+              - order: 2
+                station_id: "10000000-0000-0000-0000-000000000001"
+                station_name: "Kocaeli Üniversitesi (Merkez Hub)"
+                station_code: "HUB"
+                latitude: 40.8224
+                longitude: 29.9256
+                is_hub: true
+                action: "end"
+                cargo_count: 0
+                weight_kg: 0
+            polyline: "encoded_polyline_for_full_route..."
+            assigned_cargos:
+              - cargo_id: "cargo-uuid-1"
+                user_id: "user-uuid-1"
+                station_id: "10000000-0000-0000-0000-000000000002"
+                weight_kg: 12.0
+                pickup_order: 1
+            users:
+              - user_id: "user-uuid-1"
+                cargo_count: 10
+      
+      unassigned:
+        type: array
+        description: Atanamayan kargolar (limited_vehicles problemi için)
+        items:
+          type: object
+          properties:
+            cargo_id:
+              type: string
+              format: uuid
+            station_id:
+              type: string
+              format: uuid
+            weight_kg:
+              type: number
+            reason:
+              type: string
+              description: Neden atanamadı
+        example: []
+      
+      algorithm_info:
+        type: object
+        description: Kullanılan algoritma bilgisi
+        properties:
+          name:
+            type: string
+            example: "Greedy + 2-opt"
+          iterations:
+            type: integer
+          execution_time_ms:
+            type: number
+          improvement_percentage:
+            type: number
+            description: Başlangıç çözümüne göre iyileştirme
+
+---
+
+# ============================================================
+# ERROR RESPONSE
+# ============================================================
+
+OptimizerError:
+  description: Optimizasyon başarısız olduğunda
+  schema:
+    type: object
+    properties:
+      success:
+        type: boolean
+        example: false
+      error:
+        type: object
+        properties:
+          code:
+            type: string
+            example: "INFEASIBLE_SOLUTION"
+          message:
+            type: string
+            example: "Toplam kargo ağırlığı mevcut araç kapasitesini aşıyor"
+          details:
+            type: object
+
+---
+
+# ============================================================
+# EXAMPLE: SENARYO 1 INPUT
+# ============================================================
+
+Scenario1Example:
+  description: Senaryo 1 için tam optimizer input örneği
+  input:
+    plan_date: "2025-12-13"
+    problem_type: "unlimited_vehicles"
+    hub:
+      id: "10000000-0000-0000-0000-000000000001"
+      name: "Kocaeli Üniversitesi (Merkez Hub)"
+      latitude: 40.8224
+      longitude: 29.9256
+    stations:
+      - {id: "st-basiskele", name: "Başiskele", code: "BASISKELE", latitude: 40.7167, longitude: 29.9333, cargo_count: 10, total_weight_kg: 120}
+      - {id: "st-cayirova", name: "Çayırova", code: "CAYIROVA", latitude: 40.8275, longitude: 29.3772, cargo_count: 8, total_weight_kg: 80}
+      - {id: "st-darica", name: "Darıca", code: "DARICA", latitude: 40.7692, longitude: 29.3753, cargo_count: 15, total_weight_kg: 200}
+      - {id: "st-derince", name: "Derince", code: "DERINCE", latitude: 40.7550, longitude: 29.8267, cargo_count: 10, total_weight_kg: 150}
+      - {id: "st-dilovasi", name: "Dilovası", code: "DILOVASI", latitude: 40.7833, longitude: 29.5333, cargo_count: 12, total_weight_kg: 180}
+      - {id: "st-gebze", name: "Gebze", code: "GEBZE", latitude: 40.8028, longitude: 29.4306, cargo_count: 5, total_weight_kg: 70}
+      - {id: "st-golcuk", name: "Gölcük", code: "GOLCUK", latitude: 40.7167, longitude: 29.8167, cargo_count: 7, total_weight_kg: 90}
+      - {id: "st-kandira", name: "Kandıra", code: "KANDIRA", latitude: 41.0711, longitude: 30.1528, cargo_count: 6, total_weight_kg: 60}
+      - {id: "st-karamursel", name: "Karamürsel", code: "KARAMURSEL", latitude: 40.6917, longitude: 29.6167, cargo_count: 9, total_weight_kg: 110}
+      - {id: "st-kartepe", name: "Kartepe", code: "KARTEPE", latitude: 40.7500, longitude: 30.0333, cargo_count: 11, total_weight_kg: 130}
+      - {id: "st-korfez", name: "Körfez", code: "KORFEZ", latitude: 40.7833, longitude: 29.7333, cargo_count: 6, total_weight_kg: 75}
+      - {id: "st-izmit", name: "İzmit", code: "IZMIT", latitude: 40.7667, longitude: 29.9167, cargo_count: 14, total_weight_kg: 160}
+    vehicles:
+      - {id: "v1", name: "Araç 1", plate_number: "41 KRG 001", capacity_kg: 500, ownership: "owned", rental_cost: 0}
+      - {id: "v2", name: "Araç 2", plate_number: "41 KRG 002", capacity_kg: 750, ownership: "owned", rental_cost: 0}
+      - {id: "v3", name: "Araç 3", plate_number: "41 KRG 003", capacity_kg: 1000, ownership: "owned", rental_cost: 0}
+    parameters:
+      cost_per_km: 1.0
+      rental_cost: 200.0
+      rental_capacity_kg: 500.0
+    distance_matrix:
+      # Hub -> Stations (örnek)
+      "hub_st-basiskele": {distance_km: 8.5, duration_minutes: 15, polyline: "..."}
+      "hub_st-izmit": {distance_km: 5.2, duration_minutes: 10, polyline: "..."}
+      # ... diğer tüm kombinasyonlar

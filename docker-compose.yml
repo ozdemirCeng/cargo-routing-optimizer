@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # ==================== DATABASE ====================
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: kargo-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kargo
+      POSTGRES_PASSWORD: kargo123
+      POSTGRES_DB: kargo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kargo -d kargo_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== ROUTING ENGINE (OSRM) ====================
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: kargo-osrm
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./osrm-data:/data
+    command: osrm-routed --algorithm mld /data/turkey-latest.osrm
+    # İlk kurulumda önce osrm-data hazırlanmalı (aşağıda script var)
+
+  # ==================== CORE API (NestJS) ====================
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: kargo-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://kargo:kargo123@postgres:5432/kargo_db
+      OSRM_URL: http://osrm:5000
+      OPTIMIZER_URL: http://optimizer:8000
+      JWT_SECRET: super-secret-jwt-key-change-in-production
+      JWT_EXPIRES_IN: 7d
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+
+  # ==================== OPTIMIZER (Python FastAPI) ====================
+  optimizer:
+    build:
+      context: ./apps/optimizer
+      dockerfile: Dockerfile
+    container_name: kargo-optimizer
+    restart: unless-stopped
+    environment:
+      OSRM_URL: http://osrm:5000
+      DATABASE_URL: postgresql://kargo:kargo123@postgres:5432/kargo_db
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - osrm
+    volumes:
+      - ./apps/optimizer:/app
+
+  # ==================== WEB (Next.js) ====================
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: kargo-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_MAPLIBRE_STYLE: https://basemaps.cartocdn.com/gl/positron-gl-style/style.json
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  postgres_data:

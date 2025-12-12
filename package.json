@@ -1,0 +1,33 @@
+{
+  "name": "kargo-isletme-sistemi",
+  "version": "1.0.0",
+  "description": "Kocaeli Üniversitesi - Kargo İşletme Sistemi (VRP Optimization)",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:optimizer\"",
+    "dev:api": "cd apps/api && npm run start:dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:optimizer": "cd apps/optimizer && python -m uvicorn main:app --reload --port 5000",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "cd apps/api && npm run build",
+    "build:web": "cd apps/web && npm run build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "db:push": "cd apps/api && npx prisma db push",
+    "db:generate": "cd apps/api && npx prisma generate",
+    "db:studio": "cd apps/api && npx prisma studio"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Kocaeli Üniversitesi",
+  "license": "MIT"
+}

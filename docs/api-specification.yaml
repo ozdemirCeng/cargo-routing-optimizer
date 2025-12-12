@@ -1,0 +1,1213 @@
+# ============================================================
+# KARGO İŞLETME SİSTEMİ - API ENDPOINT SPECIFICATION
+# OpenAPI 3.0 Benzeri Dokümantasyon
+# ============================================================
+
+openapi: 3.0.3
+info:
+  title: Kargo İşletme Sistemi API
+  description: |
+    Kocaeli Üniversitesi Yazılım Lab I - Kargo Rotalama ve Optimizasyon API'si.
+    
+    ## Authentication
+    JWT Bearer token kullanılır. Login sonrası dönen token her istekte 
+    `Authorization: Bearer <token>` header'ı ile gönderilmelidir.
+    
+    ## Roller
+    - **admin**: Tüm endpoint'lere erişim, tüm araçları görme
+    - **user**: Sadece kendi kargolarını ve kendi aracını görme
+  version: 1.0.0
+  
+servers:
+  - url: http://localhost:3001/api
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Kimlik doğrulama
+  - name: Users
+    description: Kullanıcı yönetimi (Admin)
+  - name: Stations
+    description: İstasyon (ilçe) yönetimi
+  - name: Vehicles
+    description: Araç yönetimi
+  - name: Cargos
+    description: Kargo işlemleri
+  - name: Plans
+    description: Rota planlama (Optimizer)
+  - name: Trips
+    description: Sefer takibi
+  - name: Dashboard
+    description: Admin dashboard verileri
+  - name: Parameters
+    description: Sistem parametreleri
+  - name: Routing
+    description: Yol/mesafe hesaplama
+
+# ============================================================
+# AUTH ENDPOINTS
+# ============================================================
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Kullanıcı girişi
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: admin@kargo.local
+                password:
+                  type: string
+                  example: admin123
+      responses:
+        200:
+          description: Başarılı giriş
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Mevcut kullanıcı bilgisi
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Kullanıcı bilgisi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Yeni kullanıcı kaydı
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, fullName]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                fullName:
+                  type: string
+      responses:
+        201:
+          description: Kullanıcı oluşturuldu
+
+# ============================================================
+# STATIONS ENDPOINTS
+# ============================================================
+
+  /stations:
+    get:
+      tags: [Stations]
+      summary: Tüm istasyonları listele
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: active
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        200:
+          description: İstasyon listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Station'
+
+    post:
+      tags: [Stations]
+      summary: Yeni istasyon ekle (Admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StationCreate'
+      responses:
+        201:
+          description: İstasyon oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Station'
+
+  /stations/{id}:
+    get:
+      tags: [Stations]
+      summary: İstasyon detayı
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: İstasyon detayı
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Station'
+
+    patch:
+      tags: [Stations]
+      summary: İstasyon güncelle (Admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StationUpdate'
+      responses:
+        200:
+          description: Güncellendi
+
+    delete:
+      tags: [Stations]
+      summary: İstasyon sil (Admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        204:
+          description: Silindi
+
+  /stations/summary:
+    get:
+      tags: [Stations]
+      summary: İstasyon kargo özeti (ertesi gün için)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Plan tarihi (YYYY-MM-DD)
+      responses:
+        200:
+          description: İstasyon bazlı kargo özeti
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StationSummary'
+
+# ============================================================
+# VEHICLES ENDPOINTS
+# ============================================================
+
+  /vehicles:
+    get:
+      tags: [Vehicles]
+      summary: Araçları listele
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Araç listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vehicle'
+
+    post:
+      tags: [Vehicles]
+      summary: Yeni araç ekle (Admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VehicleCreate'
+      responses:
+        201:
+          description: Araç oluşturuldu
+
+  /vehicles/{id}:
+    get:
+      tags: [Vehicles]
+      summary: Araç detayı
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Araç detayı
+
+    patch:
+      tags: [Vehicles]
+      summary: Araç güncelle (Admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Güncellendi
+
+# ============================================================
+# CARGOS ENDPOINTS
+# ============================================================
+
+  /cargos:
+    get:
+      tags: [Cargos]
+      summary: Kargoları listele
+      description: |
+        Admin tüm kargoları görür.
+        User sadece kendi kargolarını görür.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, assigned, in_transit, delivered, cancelled]
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: stationId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Kargo listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cargo'
+
+    post:
+      tags: [Cargos]
+      summary: Yeni kargo oluştur
+      description: Kullanıcı sadece tanımlı istasyonlardan seçebilir
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CargoCreate'
+      responses:
+        201:
+          description: Kargo oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cargo'
+
+  /cargos/{id}:
+    get:
+      tags: [Cargos]
+      summary: Kargo detayı
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Kargo detayı (kendi aracının rotası dahil)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CargoDetail'
+
+  /cargos/{id}/route:
+    get:
+      tags: [Cargos]
+      summary: Kargonun taşındığı aracın rotası
+      description: |
+        RBAC: Kullanıcı SADECE kendi kargosunun aracını görebilir.
+        Başka araçların rotasına erişim 403 döner.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Araç rotası (polyline dahil)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteInfo'
+        403:
+          description: Bu kargo size ait değil
+
+# ============================================================
+# PLANS ENDPOINTS (Optimizer)
+# ============================================================
+
+  /plans:
+    get:
+      tags: [Plans]
+      summary: Plan listesi (Admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, active, completed, cancelled]
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        200:
+          description: Plan listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plan'
+
+    post:
+      tags: [Plans]
+      summary: Yeni plan oluştur (Optimizer çalıştır)
+      description: |
+        Ertesi gün için rota planlaması yapar.
+        
+        **problem_type:**
+        - `unlimited_vehicles`: Sınırsız araç, min maliyet
+        - `limited_vehicles`: Belirli araç, min maliyet + max kargo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanCreate'
+      responses:
+        201:
+          description: Plan oluşturuldu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanDetail'
+
+  /plans/{id}:
+    get:
+      tags: [Plans]
+      summary: Plan detayı
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Plan detayı (rotalar, maliyetler, polyline'lar dahil)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanDetail'
+
+  /plans/{id}/activate:
+    post:
+      tags: [Plans]
+      summary: Planı aktifleştir
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Plan aktifleştirildi
+
+  /plans/{id}/routes:
+    get:
+      tags: [Plans]
+      summary: Plan rotaları (Admin - tüm araçlar)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Tüm araç rotaları
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlanRoute'
+
+# ============================================================
+# TRIPS ENDPOINTS
+# ============================================================
+
+  /trips:
+    get:
+      tags: [Trips]
+      summary: Sefer listesi
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: vehicleId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        200:
+          description: Sefer listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trip'
+
+  /trips/{id}:
+    get:
+      tags: [Trips]
+      summary: Sefer detayı
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Sefer detayı
+
+  /trips/{id}/start:
+    post:
+      tags: [Trips]
+      summary: Seferi başlat
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Sefer başlatıldı
+
+  /trips/{id}/complete:
+    post:
+      tags: [Trips]
+      summary: Seferi tamamla
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Sefer tamamlandı
+
+# ============================================================
+# DASHBOARD ENDPOINTS
+# ============================================================
+
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Genel özet (Admin)
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Dashboard özet verileri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+
+  /dashboard/cost-analysis:
+    get:
+      tags: [Dashboard]
+      summary: Maliyet analizi
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: planId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: Araç bazlı maliyet analizi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CostAnalysis'
+
+  /dashboard/scenario-comparison:
+    get:
+      tags: [Dashboard]
+      summary: Senaryo karşılaştırma
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: planIds
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+      responses:
+        200:
+          description: Senaryolar arası karşılaştırma
+
+# ============================================================
+# PARAMETERS ENDPOINTS
+# ============================================================
+
+  /parameters:
+    get:
+      tags: [Parameters]
+      summary: Sistem parametrelerini getir
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Parametre listesi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Parameter'
+
+    patch:
+      tags: [Parameters]
+      summary: Parametreleri güncelle (Admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: number
+              example:
+                cost_per_km: 1.5
+                rental_cost_500kg: 250
+      responses:
+        200:
+          description: Güncellendi
+
+# ============================================================
+# ROUTING ENDPOINTS
+# ============================================================
+
+  /routing/distance:
+    get:
+      tags: [Routing]
+      summary: İki nokta arası mesafe
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Başlangıç istasyon ID
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Bitiş istasyon ID
+      responses:
+        200:
+          description: Mesafe ve polyline
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distance_km:
+                    type: number
+                  duration_minutes:
+                    type: number
+                  polyline:
+                    type: string
+
+  /routing/matrix:
+    post:
+      tags: [Routing]
+      summary: Mesafe matrisi hesapla
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stationIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        200:
+          description: NxN mesafe matrisi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DistanceMatrix'
+
+  /routing/refresh-cache:
+    post:
+      tags: [Routing]
+      summary: Mesafe cache'ini yenile (Admin)
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: Cache yenilendi
+
+# ============================================================
+# COMPONENTS
+# ============================================================
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        fullName:
+          type: string
+        role:
+          type: string
+          enum: [admin, user]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    Station:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        code:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        isHub:
+          type: boolean
+        isActive:
+          type: boolean
+
+    StationCreate:
+      type: object
+      required: [name, code, latitude, longitude]
+      properties:
+        name:
+          type: string
+          example: "Yeni İlçe"
+        code:
+          type: string
+          example: "YENIILCE"
+        latitude:
+          type: number
+          example: 40.7500
+        longitude:
+          type: number
+          example: 29.9000
+        address:
+          type: string
+
+    StationUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        isActive:
+          type: boolean
+
+    StationSummary:
+      type: object
+      properties:
+        stationId:
+          type: string
+          format: uuid
+        stationName:
+          type: string
+        stationCode:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        cargoCount:
+          type: integer
+        totalWeightKg:
+          type: number
+
+    Vehicle:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        plateNumber:
+          type: string
+        name:
+          type: string
+        capacityKg:
+          type: number
+        ownership:
+          type: string
+          enum: [owned, rented]
+        rentalCost:
+          type: number
+        status:
+          type: string
+          enum: [available, on_route, maintenance]
+
+    VehicleCreate:
+      type: object
+      required: [plateNumber, name, capacityKg]
+      properties:
+        plateNumber:
+          type: string
+        name:
+          type: string
+        capacityKg:
+          type: number
+        ownership:
+          type: string
+          enum: [owned, rented]
+        rentalCost:
+          type: number
+
+    Cargo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        trackingCode:
+          type: string
+        userId:
+          type: string
+          format: uuid
+        originStation:
+          $ref: '#/components/schemas/Station'
+        weightKg:
+          type: number
+        status:
+          type: string
+          enum: [pending, assigned, in_transit, delivered, cancelled]
+        scheduledDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+
+    CargoCreate:
+      type: object
+      required: [originStationId, weightKg]
+      properties:
+        originStationId:
+          type: string
+          format: uuid
+        weightKg:
+          type: number
+        description:
+          type: string
+        scheduledDate:
+          type: string
+          format: date
+
+    CargoDetail:
+      allOf:
+        - $ref: '#/components/schemas/Cargo'
+        - type: object
+          properties:
+            assignedVehicle:
+              $ref: '#/components/schemas/Vehicle'
+            route:
+              $ref: '#/components/schemas/RouteInfo'
+
+    RouteInfo:
+      type: object
+      properties:
+        vehicleId:
+          type: string
+          format: uuid
+        vehicleName:
+          type: string
+        polyline:
+          type: string
+          description: Encoded polyline (yol üstünden çizim için)
+        stations:
+          type: array
+          items:
+            type: object
+            properties:
+              stationId:
+                type: string
+                format: uuid
+              stationName:
+                type: string
+              order:
+                type: integer
+              latitude:
+                type: number
+              longitude:
+                type: number
+        totalDistanceKm:
+          type: number
+        estimatedDuration:
+          type: string
+
+    Plan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        planDate:
+          type: string
+          format: date
+        problemType:
+          type: string
+          enum: [unlimited_vehicles, limited_vehicles]
+        status:
+          type: string
+          enum: [draft, active, completed, cancelled]
+        totalDistanceKm:
+          type: number
+        totalCost:
+          type: number
+        totalCargos:
+          type: integer
+        vehiclesUsed:
+          type: integer
+        vehiclesRented:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    PlanCreate:
+      type: object
+      required: [planDate, problemType]
+      properties:
+        planDate:
+          type: string
+          format: date
+          description: "Ertesi gün tarihi"
+        problemType:
+          type: string
+          enum: [unlimited_vehicles, limited_vehicles]
+        parameters:
+          type: object
+          properties:
+            costPerKm:
+              type: number
+            rentalCost:
+              type: number
+          description: "Override parametreler (opsiyonel)"
+
+    PlanDetail:
+      allOf:
+        - $ref: '#/components/schemas/Plan'
+        - type: object
+          properties:
+            routes:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlanRoute'
+            optimizerResult:
+              type: object
+              description: "Ham optimizer çıktısı"
+
+    PlanRoute:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+        routeOrder:
+          type: integer
+        totalDistanceKm:
+          type: number
+        totalCost:
+          type: number
+        totalWeightKg:
+          type: number
+        cargoCount:
+          type: integer
+        polyline:
+          type: string
+        stations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Station'
+        cargos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cargo'
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+          description: "Bu rotadaki kargoların sahipleri"
+
+    Trip:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        planRouteId:
+          type: string
+          format: uuid
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+        status:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        actualDistanceKm:
+          type: number
+        actualCost:
+          type: number
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalCargos:
+          type: integer
+        pendingCargos:
+          type: integer
+        totalVehicles:
+          type: integer
+        activeTrips:
+          type: integer
+        todayPlans:
+          type: integer
+        totalCostToday:
+          type: number
+
+    CostAnalysis:
+      type: object
+      properties:
+        planId:
+          type: string
+          format: uuid
+        totalCost:
+          type: number
+        vehicleCosts:
+          type: array
+          items:
+            type: object
+            properties:
+              vehicleId:
+                type: string
+                format: uuid
+              vehicleName:
+                type: string
+              distanceCost:
+                type: number
+              rentalCost:
+                type: number
+              totalCost:
+                type: number
+              cargoCount:
+                type: integer
+              users:
+                type: array
+                items:
+                  type: string
+
+    Parameter:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: number
+        description:
+          type: string
+
+    DistanceMatrix:
+      type: object
+      properties:
+        stations:
+          type: array
+          items:
+            type: string
+            format: uuid
+        distances:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        durations:
+          type: array
+          items:
+            type: array
+            items:
+              type: number

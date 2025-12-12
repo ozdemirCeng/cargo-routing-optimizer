@@ -1,0 +1,270 @@
+// Prisma Schema for Kargo İşletme Sistemi
+// Kocaeli Üniversitesi Yazılım Lab I - 2025-2026 Güz
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  admin
+  user
+}
+
+enum CargoStatus {
+  pending
+  assigned
+  in_transit
+  delivered
+  cancelled
+}
+
+enum VehicleStatus {
+  available
+  on_route
+  maintenance
+}
+
+enum VehicleOwnership {
+  owned
+  rented
+}
+
+enum PlanStatus {
+  draft
+  active
+  completed
+  cancelled
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  fullName     String    @map("full_name")
+  role         UserRole  @default(user)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  cargos              Cargo[]
+  createdStations     Station[]
+  createdPlans        Plan[]
+  updatedParameters   SystemParameter[]
+
+  @@map("users")
+}
+
+model SystemParameter {
+  id          Int       @id @default(autoincrement())
+  paramKey    String    @unique @map("param_key")
+  paramValue  Decimal   @map("param_value") @db.Decimal(10, 2)
+  description String?
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  updatedById String?   @map("updated_by")
+  updatedBy   User?     @relation(fields: [updatedById], references: [id])
+
+  @@map("system_parameters")
+}
+
+model Station {
+  id          String    @id @default(uuid())
+  name        String
+  code        String    @unique
+  latitude    Decimal   @db.Decimal(10, 8)
+  longitude   Decimal   @db.Decimal(11, 8)
+  address     String?
+  isHub       Boolean   @default(false) @map("is_hub")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdById String?   @map("created_by")
+  createdBy   User?     @relation(fields: [createdById], references: [id])
+
+  // Relations
+  originCargos        Cargo[]               @relation("OriginStation")
+  destinationCargos   Cargo[]               @relation("DestinationStation")
+  distancesFrom       DistanceMatrix[]      @relation("FromStation")
+  distancesTo         DistanceMatrix[]      @relation("ToStation")
+  tripLogs            TripLog[]
+
+  @@map("stations")
+}
+
+model Vehicle {
+  id              String            @id @default(uuid())
+  plateNumber     String            @unique @map("plate_number")
+  name            String
+  capacityKg      Decimal           @map("capacity_kg") @db.Decimal(10, 2)
+  fuelConsumption Decimal           @default(0.1) @map("fuel_consumption") @db.Decimal(5, 2)
+  ownership       VehicleOwnership  @default(owned)
+  rentalCost      Decimal           @default(0) @map("rental_cost") @db.Decimal(10, 2)
+  status          VehicleStatus     @default(available)
+  isActive        Boolean           @default(true) @map("is_active")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  planRoutes  PlanRoute[]
+  trips       Trip[]
+
+  @@map("vehicles")
+}
+
+model Cargo {
+  id                   String       @id @default(uuid())
+  trackingCode         String       @unique @map("tracking_code")
+  userId               String       @map("user_id")
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originStationId      String       @map("origin_station_id")
+  originStation        Station      @relation("OriginStation", fields: [originStationId], references: [id])
+  destinationStationId String?      @map("destination_station_id")
+  destinationStation   Station?     @relation("DestinationStation", fields: [destinationStationId], references: [id])
+  weightKg             Decimal      @map("weight_kg") @db.Decimal(10, 2)
+  description          String?
+  status               CargoStatus  @default(pending)
+  scheduledDate        DateTime?    @map("scheduled_date") @db.Date
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  planRouteCargos PlanRouteCargo[]
+
+  @@map("cargos")
+}
+
+model DistanceMatrix {
+  id              Int       @id @default(autoincrement())
+  fromStationId   String    @map("from_station_id")
+  fromStation     Station   @relation("FromStation", fields: [fromStationId], references: [id], onDelete: Cascade)
+  toStationId     String    @map("to_station_id")
+  toStation       Station   @relation("ToStation", fields: [toStationId], references: [id], onDelete: Cascade)
+  distanceKm      Decimal   @map("distance_km") @db.Decimal(10, 3)
+  durationMinutes Decimal   @map("duration_minutes") @db.Decimal(10, 2)
+  polyline        String?
+  calculatedAt    DateTime  @default(now()) @map("calculated_at")
+
+  @@unique([fromStationId, toStationId])
+  @@map("distance_matrix")
+}
+
+model Plan {
+  id               String      @id @default(uuid())
+  planDate         DateTime    @map("plan_date") @db.Date
+  problemType      String      @map("problem_type")
+  status           PlanStatus  @default(draft)
+  
+  // Optimizer sonuçları
+  totalDistanceKm  Decimal?    @map("total_distance_km") @db.Decimal(10, 3)
+  totalCost        Decimal?    @map("total_cost") @db.Decimal(10, 2)
+  totalCargos      Int?        @map("total_cargos")
+  totalWeightKg    Decimal?    @map("total_weight_kg") @db.Decimal(10, 2)
+  vehiclesUsed     Int?        @map("vehicles_used")
+  vehiclesRented   Int?        @map("vehicles_rented")
+  
+  // Parametreler
+  costPerKm        Decimal?    @map("cost_per_km") @db.Decimal(10, 2)
+  rentalCost       Decimal?    @map("rental_cost") @db.Decimal(10, 2)
+  
+  optimizerResult  Json?       @map("optimizer_result")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  createdById      String?     @map("created_by")
+  createdBy        User?       @relation(fields: [createdById], references: [id])
+
+  // Relations
+  routes PlanRoute[]
+
+  @@map("plans")
+}
+
+model PlanRoute {
+  id                String    @id @default(uuid())
+  planId            String    @map("plan_id")
+  plan              Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  vehicleId         String    @map("vehicle_id")
+  vehicle           Vehicle   @relation(fields: [vehicleId], references: [id])
+  
+  routeOrder        Int       @map("route_order")
+  
+  totalDistanceKm   Decimal   @map("total_distance_km") @db.Decimal(10, 3)
+  totalDurationMin  Decimal?  @map("total_duration_minutes") @db.Decimal(10, 2)
+  totalCost         Decimal   @map("total_cost") @db.Decimal(10, 2)
+  totalWeightKg     Decimal   @map("total_weight_kg") @db.Decimal(10, 2)
+  cargoCount        Int       @map("cargo_count")
+  
+  routeStations     String[]  @map("route_stations")
+  routePolyline     String?   @map("route_polyline")
+  routeDetails      Json?     @map("route_details")
+  
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  cargos PlanRouteCargo[]
+  trips  Trip[]
+
+  @@map("plan_routes")
+}
+
+model PlanRouteCargo {
+  id           Int        @id @default(autoincrement())
+  planRouteId  String     @map("plan_route_id")
+  planRoute    PlanRoute  @relation(fields: [planRouteId], references: [id], onDelete: Cascade)
+  cargoId      String     @map("cargo_id")
+  cargo        Cargo      @relation(fields: [cargoId], references: [id])
+  pickupOrder  Int        @map("pickup_order")
+
+  @@unique([planRouteId, cargoId])
+  @@map("plan_route_cargos")
+}
+
+model Trip {
+  id                    String      @id @default(uuid())
+  planRouteId           String?     @map("plan_route_id")
+  planRoute             PlanRoute?  @relation(fields: [planRouteId], references: [id])
+  vehicleId             String      @map("vehicle_id")
+  vehicle               Vehicle     @relation(fields: [vehicleId], references: [id])
+  
+  startedAt             DateTime?   @map("started_at")
+  completedAt           DateTime?   @map("completed_at")
+  
+  actualDistanceKm      Decimal?    @map("actual_distance_km") @db.Decimal(10, 3)
+  actualDurationMinutes Decimal?    @map("actual_duration_minutes") @db.Decimal(10, 2)
+  actualCost            Decimal?    @map("actual_cost") @db.Decimal(10, 2)
+  
+  status                String      @default("scheduled")
+  notes                 String?
+  
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  logs TripLog[]
+
+  @@map("trips")
+}
+
+model TripLog {
+  id          Int       @id @default(autoincrement())
+  tripId      String    @map("trip_id")
+  trip        Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  stationId   String?   @map("station_id")
+  station     Station?  @relation(fields: [stationId], references: [id])
+  eventType   String    @map("event_type")
+  eventTime   DateTime  @default(now()) @map("event_time")
+  notes       String?
+
+  @@map("trip_logs")
+}
