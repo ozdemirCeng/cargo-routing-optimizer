@@ -11,7 +11,9 @@ export type EnvConfig = {
   JWT_EXPIRES_IN: string;
 
   OPTIMIZER_URL: string;
+  OPTIMIZER_TIMEOUT_MS: number;
   OSRM_URL: string;
+  OSRM_TIMEOUT_MS: number;
 
   CORS_ORIGIN: string;
 
@@ -73,7 +75,9 @@ export function validateEnv(config: Record<string, unknown>): EnvConfig {
     JWT_EXPIRES_IN: String(config.JWT_EXPIRES_IN ?? '7d').trim() || '7d',
 
     OPTIMIZER_URL: optimizerUrl,
+    OPTIMIZER_TIMEOUT_MS: toNumber(config.OPTIMIZER_TIMEOUT_MS, 15000),
     OSRM_URL: osrmUrl,
+    OSRM_TIMEOUT_MS: toNumber(config.OSRM_TIMEOUT_MS, 8000),
 
     CORS_ORIGIN: corsOrigin,
 

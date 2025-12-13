@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  ServiceUnavailableException,
+  GatewayTimeoutException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -186,18 +193,40 @@ export class PlansService {
 
     // 7. Optimizer'ı çağır
     const optimizerUrl = this.configService.get<string>('OPTIMIZER_URL') || 'http://localhost:5000';
+    const optimizerTimeoutMs =
+      this.configService.get<number>('OPTIMIZER_TIMEOUT_MS') || 15000;
     let optimizerResult: any;
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post<OptimizerResponse>(`${optimizerUrl}/optimize`, optimizerInput),
+        this.httpService.post<OptimizerResponse>(
+          `${optimizerUrl}/optimize`,
+          optimizerInput,
+          { timeout: optimizerTimeoutMs },
+        ),
       );
       optimizerResult = response.data;
     } catch (error) {
       const axiosError = error as AxiosError<any>;
       const detail = (axiosError.response?.data as any)?.detail;
       const message = axiosError.message || (error instanceof Error ? error.message : String(error));
-      console.error('Optimizer error:', axiosError.response?.data || message);
+
+      const status = axiosError.response?.status;
+      const code = (axiosError as any)?.code as string | undefined;
+      console.error('Optimizer error:', axiosError.response?.data || { status, code, message });
+
+      if (code === 'ECONNABORTED') {
+        throw new GatewayTimeoutException('Optimizer zaman aşımına uğradı');
+      }
+
+      if (!status) {
+        throw new ServiceUnavailableException('Optimizer servisine ulaşılamadı');
+      }
+
+      if (status >= 500) {
+        throw new ServiceUnavailableException('Optimizer servis hatası');
+      }
+
       throw new BadRequestException('Optimizer hatası: ' + (detail || message));
     }
 

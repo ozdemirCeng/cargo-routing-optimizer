@@ -17,6 +17,7 @@ type OsrmRouteResponse = {
 export class RoutingService {
   private osrmUrl: string;
   private allowHaversineFallback: boolean;
+  private osrmTimeoutMs: number;
 
   constructor(
     private prisma: PrismaService,
@@ -24,7 +25,8 @@ export class RoutingService {
     private configService: ConfigService,
   ) {
     this.osrmUrl = this.configService.get<string>('OSRM_URL') || 'http://localhost:5001';
-    this.allowHaversineFallback = Boolean(this.configService.get('ALLOW_HAVERSINE_FALLBACK'));
+    this.allowHaversineFallback = this.configService.get<boolean>('ALLOW_HAVERSINE_FALLBACK') === true;
+    this.osrmTimeoutMs = this.configService.get<number>('OSRM_TIMEOUT_MS') || 8000;
   }
 
   // İki istasyon arası mesafe ve polyline
@@ -85,7 +87,9 @@ export class RoutingService {
   ): Promise<{ distance_km: number; duration_minutes: number; polyline: string }> {
     try {
       const url = `${this.osrmUrl}/route/v1/driving/${fromLon},${fromLat};${toLon},${toLat}?overview=full&geometries=polyline`;
-      const response = await firstValueFrom(this.httpService.get<OsrmRouteResponse>(url));
+      const response = await firstValueFrom(
+        this.httpService.get<OsrmRouteResponse>(url, { timeout: this.osrmTimeoutMs }),
+      );
       const data = response.data;
 
       if (data.code !== 'Ok' || !data.routes?.length) {
