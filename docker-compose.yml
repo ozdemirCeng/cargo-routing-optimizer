@@ -1,6 +1,61 @@
-version: '3.8'
+# Supabase-first compose (local DB yok)
+#
+# Gereken env (host ortamında veya root .env dosyasında):
+# - DATABASE_URL
+# - DIRECT_URL
+# - JWT_SECRET
+#
+# OSRM opsiyoneldir. OSRM servisini çalıştırmak için önceden hazırlanmış *.osrm dosyasını
+# ./osrm-data altına koy ve OSRM_DATA ile belirt.
 
-# Supabase kullanıldığı için local DB compose'dan kaldırıldı.
-# Bu dosya bilerek boş tutuluyor; istersen ileride API/Web/Optimizer/OSRM için compose eklenebilir.
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DIRECT_URL: ${DIRECT_URL:?DIRECT_URL is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      OPTIMIZER_URL: http://optimizer:5000
+      OSRM_URL: http://osrm:5000
+      CORS_ORIGIN: http://localhost:3000
+      LOG_FORMAT: ${LOG_FORMAT:-pretty}
+    depends_on:
+      - optimizer
+      - osrm
 
-services: {}
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+    depends_on:
+      - api
+
+  optimizer:
+    build:
+      context: ./apps/optimizer
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      OSRM_URL: http://osrm:5000
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+  osrm:
+    image: osrm/osrm-backend:v5.27.1
+    command: ["sh", "-c", "osrm-routed --algorithm mld ${OSRM_DATA:-/data/turkey-latest.osrm}"]
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./osrm-data:/data:ro

@@ -40,11 +40,12 @@ Bu proje, Kocaeli ili içindeki 12 ilçeye kargo dağıtımı yapan bir sistemi 
 # Projeyi klonlayın
 cd d:\kargo
 
-# Tüm servisleri başlatın
-docker-compose up -d
+# Supabase bağlantılarını env olarak set edin (DATABASE_URL, DIRECT_URL, JWT_SECRET)
+# Sonra servisleri başlatın
+docker compose up -d
 
 # Logları izleyin
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### Servis URL'leri
