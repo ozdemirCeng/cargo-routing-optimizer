@@ -9,10 +9,14 @@ import { AppModule } from './app.module';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor';
+import { JsonLogger } from './common/logger/json-logger';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const useJsonLogger = String(process.env.LOG_FORMAT ?? '').trim().toLowerCase() === 'json';
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: useJsonLogger ? new JsonLogger() : undefined,
+  });
 
   app.disable('x-powered-by');
   app.use(requestIdMiddleware);

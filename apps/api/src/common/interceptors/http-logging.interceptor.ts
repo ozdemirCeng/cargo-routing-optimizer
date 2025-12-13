@@ -25,6 +25,19 @@ export class HttpLoggingInterceptor implements NestInterceptor {
       tap({
         next: () => {
           const durationMs = Date.now() - startedAt;
+          const useJsonLogger = String(process.env.LOG_FORMAT ?? '').trim().toLowerCase() === 'json';
+          if (useJsonLogger) {
+            this.logger.log({
+              method: req.method,
+              path: req.originalUrl ?? req.url,
+              statusCode: res.statusCode,
+              durationMs,
+              rid: requestId,
+              uid: userId,
+            });
+            return;
+          }
+
           this.logger.log(
             `${req.method} ${req.originalUrl ?? req.url} ${res.statusCode} ${durationMs}ms` +
               (requestId ? ` rid=${requestId}` : '') +
