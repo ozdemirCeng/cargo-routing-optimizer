@@ -18,45 +18,49 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { parametersApi } from '@/lib/api';
 
 interface Parameters {
-  costPerKm: number;
-  vehicleRentalCost: number;
-  defaultCapacitySmall: number;
-  defaultCapacityMedium: number;
-  defaultCapacityLarge: number;
-  maxWorkingHours: number;
-  averageSpeedKmh: number;
-  hubStationCode: string;
+  cost_per_km: number;
+  rental_cost_500kg: number;
+  default_capacity_small: number;
+  default_capacity_medium: number;
+  default_capacity_large: number;
+  max_working_hours: number;
+  average_speed_kmh: number;
 }
 
 export default function ParametersPage() {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<Parameters>({
-    costPerKm: 1,
-    vehicleRentalCost: 200,
-    defaultCapacitySmall: 500,
-    defaultCapacityMedium: 750,
-    defaultCapacityLarge: 1000,
-    maxWorkingHours: 8,
-    averageSpeedKmh: 50,
-    hubStationCode: 'KOC-MERKEZ',
+    cost_per_km: 1,
+    rental_cost_500kg: 200,
+    default_capacity_small: 500,
+    default_capacity_medium: 750,
+    default_capacity_large: 1000,
+    max_working_hours: 8,
+    average_speed_kmh: 50,
   });
 
   const { data: parameters, isLoading, refetch } = useQuery({
     queryKey: ['parameters'],
-    queryFn: () => parametersApi.getAll().then((r) => r.data),
+    queryFn: async () => {
+      const rows = await parametersApi.getAll().then((r) => r.data as any[]);
+      const map: Record<string, number> = {};
+      for (const row of rows) {
+        map[String(row.paramKey)] = Number(row.paramValue);
+      }
+      return map;
+    },
   });
 
   useEffect(() => {
     if (parameters) {
       setFormData({
-        costPerKm: parameters.costPerKm || 1,
-        vehicleRentalCost: parameters.vehicleRentalCost || 200,
-        defaultCapacitySmall: parameters.defaultCapacitySmall || 500,
-        defaultCapacityMedium: parameters.defaultCapacityMedium || 750,
-        defaultCapacityLarge: parameters.defaultCapacityLarge || 1000,
-        maxWorkingHours: parameters.maxWorkingHours || 8,
-        averageSpeedKmh: parameters.averageSpeedKmh || 50,
-        hubStationCode: parameters.hubStationCode || 'KOC-MERKEZ',
+        cost_per_km: (parameters as any).cost_per_km || 1,
+        rental_cost_500kg: (parameters as any).rental_cost_500kg || 200,
+        default_capacity_small: (parameters as any).default_capacity_small || 500,
+        default_capacity_medium: (parameters as any).default_capacity_medium || 750,
+        default_capacity_large: (parameters as any).default_capacity_large || 1000,
+        max_working_hours: (parameters as any).max_working_hours || 8,
+        average_speed_kmh: (parameters as any).average_speed_kmh || 50,
       });
     }
   }, [parameters]);
@@ -70,7 +74,7 @@ export default function ParametersPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateMutation.mutate(formData);
+    updateMutation.mutate(formData as unknown as Record<string, number>);
   };
 
   if (isLoading) {
@@ -120,9 +124,9 @@ export default function ParametersPage() {
                   fullWidth
                   label="Kilometre Başı Maliyet (TL/km)"
                   type="number"
-                  value={formData.costPerKm}
+                  value={formData.cost_per_km}
                   onChange={(e) =>
-                    setFormData({ ...formData, costPerKm: parseFloat(e.target.value) })
+                    setFormData({ ...formData, cost_per_km: parseFloat(e.target.value) })
                   }
                   margin="normal"
                   inputProps={{ min: 0, step: 0.1 }}
@@ -133,9 +137,9 @@ export default function ParametersPage() {
                   fullWidth
                   label="Araç Kiralama Maliyeti (TL/gün)"
                   type="number"
-                  value={formData.vehicleRentalCost}
+                  value={formData.rental_cost_500kg}
                   onChange={(e) =>
-                    setFormData({ ...formData, vehicleRentalCost: parseFloat(e.target.value) })
+                    setFormData({ ...formData, rental_cost_500kg: parseFloat(e.target.value) })
                   }
                   margin="normal"
                   inputProps={{ min: 0, step: 10 }}
@@ -157,9 +161,9 @@ export default function ParametersPage() {
                   fullWidth
                   label="Küçük Araç Kapasitesi (kg)"
                   type="number"
-                  value={formData.defaultCapacitySmall}
+                  value={formData.default_capacity_small}
                   onChange={(e) =>
-                    setFormData({ ...formData, defaultCapacitySmall: parseFloat(e.target.value) })
+                    setFormData({ ...formData, default_capacity_small: parseFloat(e.target.value) })
                   }
                   margin="normal"
                   inputProps={{ min: 100, step: 50 }}
@@ -169,9 +173,9 @@ export default function ParametersPage() {
                   fullWidth
                   label="Orta Araç Kapasitesi (kg)"
                   type="number"
-                  value={formData.defaultCapacityMedium}
+                  value={formData.default_capacity_medium}
                   onChange={(e) =>
-                    setFormData({ ...formData, defaultCapacityMedium: parseFloat(e.target.value) })
+                    setFormData({ ...formData, default_capacity_medium: parseFloat(e.target.value) })
                   }
                   margin="normal"
                   inputProps={{ min: 100, step: 50 }}
@@ -181,9 +185,9 @@ export default function ParametersPage() {
                   fullWidth
                   label="Büyük Araç Kapasitesi (kg)"
                   type="number"
-                  value={formData.defaultCapacityLarge}
+                  value={formData.default_capacity_large}
                   onChange={(e) =>
-                    setFormData({ ...formData, defaultCapacityLarge: parseFloat(e.target.value) })
+                    setFormData({ ...formData, default_capacity_large: parseFloat(e.target.value) })
                   }
                   margin="normal"
                   inputProps={{ min: 100, step: 50 }}
@@ -204,9 +208,9 @@ export default function ParametersPage() {
                   fullWidth
                   label="Maksimum Çalışma Saati"
                   type="number"
-                  value={formData.maxWorkingHours}
+                  value={formData.max_working_hours}
                   onChange={(e) =>
-                    setFormData({ ...formData, maxWorkingHours: parseFloat(e.target.value) })
+                    setFormData({ ...formData, max_working_hours: parseFloat(e.target.value) })
                   }
                   margin="normal"
                   inputProps={{ min: 1, max: 12, step: 1 }}
@@ -217,35 +221,13 @@ export default function ParametersPage() {
                   fullWidth
                   label="Ortalama Hız (km/saat)"
                   type="number"
-                  value={formData.averageSpeedKmh}
+                  value={formData.average_speed_kmh}
                   onChange={(e) =>
-                    setFormData({ ...formData, averageSpeedKmh: parseFloat(e.target.value) })
+                    setFormData({ ...formData, average_speed_kmh: parseFloat(e.target.value) })
                   }
                   margin="normal"
                   inputProps={{ min: 10, max: 120, step: 5 }}
                   helperText="Rota süresi hesabı için ortalama hız"
-                />
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Diğer Ayarlar
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-
-                <TextField
-                  fullWidth
-                  label="Merkez İstasyon Kodu"
-                  value={formData.hubStationCode}
-                  onChange={(e) =>
-                    setFormData({ ...formData, hubStationCode: e.target.value })
-                  }
-                  margin="normal"
-                  helperText="Tüm araçların başlangıç ve bitiş noktası"
                 />
               </CardContent>
             </Card>

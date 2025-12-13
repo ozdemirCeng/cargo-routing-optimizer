@@ -5,6 +5,7 @@ import {
   ConflictException,
   ServiceUnavailableException,
   GatewayTimeoutException,
+  Logger,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
@@ -34,6 +35,8 @@ type OptimizerResponse = {
 
 @Injectable()
 export class PlansService {
+  private readonly logger = new Logger(PlansService.name);
+
   constructor(
     private prisma: PrismaService,
     private httpService: HttpService,
@@ -213,7 +216,7 @@ export class PlansService {
 
       const status = axiosError.response?.status;
       const code = (axiosError as any)?.code as string | undefined;
-      console.error('Optimizer error:', axiosError.response?.data || { status, code, message });
+      this.logger.error('Optimizer error', axiosError.response?.data || { status, code, message });
 
       if (code === 'ECONNABORTED') {
         throw new GatewayTimeoutException('Optimizer zaman aşımına uğradı');

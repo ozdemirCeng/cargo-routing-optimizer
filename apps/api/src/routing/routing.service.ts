@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,6 +15,8 @@ type OsrmRouteResponse = {
 
 @Injectable()
 export class RoutingService {
+  private readonly logger = new Logger(RoutingService.name);
+
   private osrmUrl: string;
   private allowHaversineFallback: boolean;
   private osrmTimeoutMs: number;
@@ -106,7 +108,7 @@ export class RoutingService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('OSRM error:', message);
+      this.logger.error('OSRM error', message);
 
       if (!this.allowHaversineFallback) {
         throw new ServiceUnavailableException(

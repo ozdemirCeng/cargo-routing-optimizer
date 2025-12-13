@@ -27,8 +27,15 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
 
+  type RegisterPayload = {
+    email: string;
+    password: string;
+    fullName: string;
+  };
+
   const registerMutation = useMutation({
-    mutationFn: authApi.register,
+    mutationFn: (data: RegisterPayload) =>
+      authApi.register(data.email, data.password, data.fullName),
     onSuccess: () => {
       router.push('/login?registered=true');
     },
