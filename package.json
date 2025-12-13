@@ -9,18 +9,18 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:optimizer\"",
-    "dev:api": "npx ts-node -P apps/api/tsconfig.json -r tsconfig-paths/register apps/api/src/main.ts",
-    "dev:web": "cd apps/web && npx next dev",
+    "dev:api": "npm --prefix apps/api run start:dev",
+    "dev:web": "npm --prefix apps/web run dev",
     "dev:optimizer": "cd apps/optimizer && ../../.venv/Scripts/python.exe -m uvicorn main:app --reload --port 5000",
     "build": "npm run build:api && npm run build:web",
-    "build:api": "cd apps/api && npm run build",
-    "build:web": "cd apps/web && npm run build",
+    "build:api": "npm --prefix apps/api run build",
+    "build:web": "npm --prefix apps/web run build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
-    "db:push": "cd apps/api && npx prisma db push",
-    "db:generate": "cd apps/api && npx prisma generate",
-    "db:studio": "cd apps/api && npx prisma studio"
+    "db:push": "npm --prefix apps/api run db:push",
+    "db:generate": "npm --prefix apps/api run db:generate",
+    "db:studio": "npm --prefix apps/api run db:studio"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

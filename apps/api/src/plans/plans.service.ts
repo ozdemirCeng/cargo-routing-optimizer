@@ -179,71 +179,71 @@ export class PlansService {
       throw new BadRequestException('Optimizasyon başarısız: ' + optimizerResult.error?.message);
     }
 
-    // 8. Plan'ı DB'ye kaydet
-    const plan = await this.prisma.plan.create({
-      data: {
-        planDate,
-        problemType: data.problemType,
-        status: 'draft',
-        totalDistanceKm: optimizerResult.summary.total_distance_km,
-        totalCost: optimizerResult.summary.total_cost,
-        totalCargos: optimizerResult.summary.total_cargos,
-        totalWeightKg: optimizerResult.summary.total_weight_kg,
-        vehiclesUsed: optimizerResult.summary.vehicles_used,
-        vehiclesRented: optimizerResult.summary.vehicles_rented,
-        costPerKm,
-        rentalCost,
-        optimizerResult: optimizerResult,
-        createdById: userId,
-      },
-    });
-
-    // 9. Rotaları kaydet
-    for (const route of optimizerResult.routes) {
-      const planRoute = await this.prisma.planRoute.create({
+    // 8-9. Plan + rotalar + atamalar (atomik)
+    const planId = await this.prisma.$transaction(async (tx) => {
+      const plan = await tx.plan.create({
         data: {
-          planId: plan.id,
-          vehicleId: route.vehicle_id,
-          routeOrder: route.route_order,
-          totalDistanceKm: route.total_distance_km,
-          totalDurationMin: route.total_duration_minutes,
-          totalCost: route.total_cost,
-          totalWeightKg: route.total_weight_kg,
-          cargoCount: route.cargo_count,
-          routeStations: route.route_sequence.map((s: any) => s.station_id),
-          routePolyline: route.polyline,
-          routeDetails: route.route_sequence,
+          planDate,
+          problemType: data.problemType,
+          status: 'draft',
+          totalDistanceKm: optimizerResult.summary.total_distance_km,
+          totalCost: optimizerResult.summary.total_cost,
+          totalCargos: optimizerResult.summary.total_cargos,
+          totalWeightKg: optimizerResult.summary.total_weight_kg,
+          vehiclesUsed: optimizerResult.summary.vehicles_used,
+          vehiclesRented: optimizerResult.summary.vehicles_rented,
+          costPerKm,
+          rentalCost,
+          optimizerResult,
+          createdById: userId,
         },
       });
 
-      // Kargoları rotaya bağla
-      for (const assignedCargo of route.assigned_cargos) {
-        await this.prisma.planRouteCargo.create({
+      for (const route of optimizerResult.routes) {
+        const planRoute = await tx.planRoute.create({
           data: {
-            planRouteId: planRoute.id,
-            cargoId: assignedCargo.cargo_id,
-            pickupOrder: assignedCargo.pickup_order,
+            planId: plan.id,
+            vehicleId: route.vehicle_id,
+            routeOrder: route.route_order,
+            totalDistanceKm: route.total_distance_km,
+            totalDurationMin: route.total_duration_minutes,
+            totalCost: route.total_cost,
+            totalWeightKg: route.total_weight_kg,
+            cargoCount: route.cargo_count,
+            routeStations: route.route_sequence.map((s: any) => s.station_id),
+            routePolyline: route.polyline,
+            routeDetails: route.route_sequence,
           },
         });
 
-        // Kargo durumunu güncelle
-        await this.prisma.cargo.update({
-          where: { id: assignedCargo.cargo_id },
-          data: { status: 'assigned' },
+        for (const assignedCargo of route.assigned_cargos) {
+          await tx.planRouteCargo.create({
+            data: {
+              planRouteId: planRoute.id,
+              cargoId: assignedCargo.cargo_id,
+              pickupOrder: assignedCargo.pickup_order,
+            },
+          });
+
+          await tx.cargo.update({
+            where: { id: assignedCargo.cargo_id },
+            data: { status: 'assigned' },
+          });
+        }
+
+        await tx.trip.create({
+          data: {
+            planRouteId: planRoute.id,
+            vehicleId: route.vehicle_id,
+            status: 'scheduled',
+          },
         });
       }
 
-      // Trip oluştur
-      await this.prisma.trip.create({
-        data: {
-          planRouteId: planRoute.id,
-          vehicleId: route.vehicle_id,
-          status: 'scheduled',
-        },
-      });
-    }
+      return plan.id;
+    });
 
-    return this.findById(plan.id);
+    return this.findById(planId);
   }
 
   async activate(id: string) {

@@ -24,8 +24,7 @@ export class RoutingService {
     private configService: ConfigService,
   ) {
     this.osrmUrl = this.configService.get<string>('OSRM_URL') || 'http://localhost:5001';
-    this.allowHaversineFallback =
-      String(this.configService.get<string>('ALLOW_HAVERSINE_FALLBACK') || '').toLowerCase() === 'true';
+    this.allowHaversineFallback = Boolean(this.configService.get('ALLOW_HAVERSINE_FALLBACK'));
   }
 
   // İki istasyon arası mesafe ve polyline
