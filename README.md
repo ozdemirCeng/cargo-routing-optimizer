@@ -48,6 +48,9 @@ docker compose up -d
 docker compose logs -f
 ```
 
+OSRM için Türkiye verisini indirip OSRM datasını üretme adımları:
+- [docs/OSRM.md](docs/OSRM.md)
+
 ### Servis URL'leri
 
 | Servis | URL | Açıklama |
