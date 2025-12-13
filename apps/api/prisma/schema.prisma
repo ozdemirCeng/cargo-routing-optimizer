@@ -190,6 +190,8 @@ model Plan {
   // Relations
   routes PlanRoute[]
 
+  @@unique([planDate, problemType])
+
   @@map("plans")
 }
 
