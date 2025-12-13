@@ -50,10 +50,13 @@ cd apps/api
 npm install
 
 # Prisma client oluşturun
-npx prisma generate
+npm run db:generate
 
-# Veritabanını senkronize edin
-npx prisma db push
+# Veritabanı migration'larını uygulayın (geliştirme)
+npm run db:migrate:dev
+
+# (Opsiyonel) Seed çalıştırın
+npm run db:seed
 
 # Geliştirme sunucusunu başlatın
 npm run start:dev
@@ -61,6 +64,10 @@ npm run start:dev
 
 API http://localhost:3001 adresinde çalışacak.
 Swagger: http://localhost:3001/api/docs
+
+Notlar:
+- Prod ortamında migration uygulamak için: `npm run db:migrate` (reset yapmaz, sadece deploy eder)
+- Timeout ayarları (opsiyonel): `OPTIMIZER_TIMEOUT_MS` (varsayılan 15000), `OSRM_TIMEOUT_MS` (varsayılan 8000)
 
 ## Adım 4: Optimizer Başlatma (Yerel Geliştirme)
 

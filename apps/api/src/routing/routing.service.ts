@@ -131,7 +131,13 @@ export class RoutingService {
       where: { id: { in: stationIds } },
     });
 
-    const stationMap = new Map(stations.map(s => [s.id, s]));
+    if (stations.length !== stationIds.length) {
+      const found = new Set(stations.map((s) => s.id));
+      const missing = stationIds.filter((id) => !found.has(id));
+      throw new ServiceUnavailableException(
+        `Distance matrix oluşturulamadı: bazı istasyonlar bulunamadı (${missing.join(', ')})`,
+      );
+    }
 
     // Her çift için mesafe hesapla
     for (const fromId of stationIds) {
@@ -140,12 +146,8 @@ export class RoutingService {
 
         const key = `${fromId}_${toId}`;
         
-        try {
-          const distance = await this.getDistance(fromId, toId);
-          matrix[key] = distance;
-        } catch (error) {
-          console.error(`Distance calculation failed for ${key}:`, error.message);
-        }
+        const distance = await this.getDistance(fromId, toId);
+        matrix[key] = distance;
       }
     }
 
@@ -163,7 +165,7 @@ export class RoutingService {
     await this.prisma.distanceMatrix.deleteMany({});
 
     // Yeniden hesapla
-    const stationIds = stations.map(s => s.id);
+    const stationIds = stations.map((s) => s.id);
     await this.getDistanceMatrix(stationIds);
 
     return { message: 'Cache refreshed', stationCount: stations.length };
