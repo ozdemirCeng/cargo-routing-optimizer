@@ -1,7 +1,8 @@
 version: '3.8'
 
-# Sadece PostgreSQL - Diğer servisleri yerel çalıştır
-# Kullanım: docker compose up -d
+# Opsiyonel: Local PostgreSQL (Supabase yerine)
+# Not: Supabase kullanıyorsan docker DB'ye ihtiyaç yok.
+# Local DB kullanacaksan: docker compose up -d  (sonra Prisma migrate deploy/dev ile şemayı kur)
 
 services:
   postgres:
@@ -16,8 +17,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d kargodb"]
       interval: 10s
