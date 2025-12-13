@@ -32,7 +32,11 @@ export class CargosService {
       where.status = filters.status;
     }
     if (filters?.date) {
-      where.scheduledDate = filters.date;
+      const dayStart = new Date(filters.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      where.scheduledDate = { gte: dayStart, lt: dayEnd };
     }
     if (filters?.stationId) {
       where.originStationId = filters.stationId;

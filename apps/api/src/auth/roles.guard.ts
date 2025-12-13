@@ -1,13 +1,8 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 export const ROLES_KEY = 'roles';
-export const Roles = (...roles: string[]) => {
-  return (target: any, key?: string, descriptor?: any) => {
-    Reflect.defineMetadata(ROLES_KEY, roles, descriptor?.value ?? target);
-    return descriptor ?? target;
-  };
-};
+export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
 
 @Injectable()
 export class RolesGuard implements CanActivate {

@@ -39,7 +39,13 @@ export class PlansService {
   async findAll(filters?: { status?: string; date?: Date }) {
     const where: any = {};
     if (filters?.status) where.status = filters.status;
-    if (filters?.date) where.planDate = filters.date;
+    if (filters?.date) {
+      const dayStart = new Date(filters.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      where.planDate = { gte: dayStart, lt: dayEnd };
+    }
 
     return this.prisma.plan.findMany({
       where,

@@ -33,6 +33,8 @@ export class StationsController {
   }
 
   @Get('summary')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   @ApiOperation({ summary: 'İstasyon kargo özeti (ertesi gün için)' })
   @ApiQuery({ name: 'date', required: true, type: String })
   async getSummary(@Query('date') dateStr: string) {

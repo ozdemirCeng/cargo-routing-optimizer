@@ -13,8 +13,9 @@ import { RolesGuard, Roles } from '../auth/roles.guard';
 
 @ApiTags('Trips')
 @Controller('trips')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
+@Roles('admin')
 export class TripsController {
   constructor(private tripsService: TripsService) {}
 

@@ -62,13 +62,18 @@ export class StationsService {
 
   // İstasyon bazlı kargo özeti (ertesi gün planlaması için)
   async getStationSummary(date: Date) {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
     const stations = await this.prisma.station.findMany({
       where: { isActive: true },
       include: {
         originCargos: {
           where: {
             status: 'pending',
-            scheduledDate: date,
+            scheduledDate: { gte: dayStart, lt: dayEnd },
           },
         },
       },
