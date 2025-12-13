@@ -14,32 +14,37 @@ Bu rehber, projeyi adım adım çalıştırmanız için gereken tüm komutları 
 # Proje klasörüne gidin
 cd d:\kargo
 
+# API env dosyasını hazırlayın (Supabase)
+# apps/api/.env.example -> apps/api/.env
+# DATABASE_URL, DIRECT_URL, JWT_SECRET zorunlu
+
 # Docker servislerini başlatın
-docker-compose up -d
+docker compose up -d
 
 # Servislerin durumunu kontrol edin
-docker-compose ps
+docker compose ps
 ```
 
 ## Adım 2: OSRM Verileri (İlk Kurulum)
 
 OSRM için Türkiye harita verisini indirmeniz gerekiyor:
 
+1) Geofabrik'ten indirin:
+
+- https://download.geofabrik.de/europe/turkey-latest.osm.pbf
+
+2) Dosyayı repo kökündeki `osrm-data/` altına koyun:
+
+- `osrm-data/turkey-latest.osm.pbf`
+
+3) OSRM MLD datasını üretin:
+
 ```powershell
-# osrm-data klasörü oluşturun
-mkdir osrm-data
-
-# Türkiye OSM verisini indirin (alternatif: Kocaeli bölgesi)
-# https://download.geofabrik.de/europe/turkey-latest.osm.pbf
-
-# OSRM için işleyin (Docker içinde)
-docker run -t -v ${PWD}/osrm-data:/data osrm/osrm-backend osrm-extract -p /opt/car.lua /data/turkey-latest.osm.pbf
-docker run -t -v ${PWD}/osrm-data:/data osrm/osrm-backend osrm-partition /data/turkey-latest.osrm
-docker run -t -v ${PWD}/osrm-data:/data osrm/osrm-backend osrm-customize /data/turkey-latest.osrm
-
-# OSRM sunucusunu başlatın (varsayılan: 5001)
-docker run -d --name kargo-osrm -p 5001:5000 -v ${PWD}/osrm-data:/data osrm/osrm-backend osrm-routed --algorithm mld /data/turkey-latest.osrm
+cd d:\kargo
+./scripts/osrm-build.ps1
 ```
+
+Detay: [docs/OSRM.md](docs/OSRM.md)
 
 ## Adım 3: API Başlatma (Yerel Geliştirme)
 
@@ -123,12 +128,10 @@ Web http://localhost:3000 adresinde çalışacak.
 
 ## 🔍 Sorun Giderme
 
-### PostgreSQL bağlantı hatası
+### Supabase bağlantı hatası
 
-```powershell
-# Container'ı yeniden başlatın
-docker-compose restart postgres
-```
+- `apps/api/.env` içinde `DATABASE_URL` ve `DIRECT_URL` değerlerini kontrol edin.
+- Supabase tarafında IP allowlist/connection limit kontrol edin.
 
 ### OSRM 404 hatası
 

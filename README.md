@@ -40,7 +40,10 @@ Bu proje, Kocaeli ili içindeki 12 ilçeye kargo dağıtımı yapan bir sistemi 
 # Projeyi klonlayın
 cd d:\kargo
 
-# Supabase bağlantılarını env olarak set edin (DATABASE_URL, DIRECT_URL, JWT_SECRET)
+# Supabase bağlantılarını apps/api/.env içine koyun
+# (apps/api/.env.example -> apps/api/.env)
+# DATABASE_URL, DIRECT_URL, JWT_SECRET zorunlu
+
 # Sonra servisleri başlatın
 docker compose up -d
 
@@ -56,7 +59,7 @@ OSRM için Türkiye verisini indirip OSRM datasını üretme adımları:
 | Servis | URL | Açıklama |
 |--------|-----|----------|
 | Web UI | http://localhost:3000 | Next.js Frontend |
-| API | http://localhost:3001 | NestJS Backend |
+| API | http://localhost:3001/api | NestJS Backend (base path) |
 | API Docs | http://localhost:3001/api/docs | Swagger UI |
 | Optimizer | http://localhost:5000 | Python VRP Solver |
 | Health | http://localhost:3001/api/health | Liveness |

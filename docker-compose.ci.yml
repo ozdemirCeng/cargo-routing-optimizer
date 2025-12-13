@@ -1,0 +1,48 @@
+# CI smoke compose
+# - Does NOT start OSRM (avoid large data build/download in CI)
+# - Brings up API + Optimizer and validates health endpoints
+
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: test
+      PORT: 3001
+      # Prisma envs required by env validation; the DB won't actually exist in CI.
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db
+      DIRECT_URL: postgresql://user:pass@localhost:5432/db
+      JWT_SECRET: ci_dummy_secret
+      JWT_EXPIRES_IN: 7d
+      OPTIMIZER_URL: http://optimizer:5000
+      # OSRM not started in CI; keep a placeholder.
+      OSRM_URL: http://127.0.0.1:9
+      CORS_ORIGIN: http://localhost:3000
+      ALLOW_HAVERSINE_FALLBACK: "true"
+      LOG_FORMAT: json
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http=require('http');const r=http.request({hostname:'127.0.0.1',port:3001,path:'/api/health',timeout:2000},res=>process.exit(res.statusCode===200?0:1));r.on('error',()=>process.exit(1));r.on('timeout',()=>process.exit(1));r.end();"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      optimizer:
+        condition: service_healthy
+
+  optimizer:
+    build:
+      context: ./apps/optimizer
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      LOG_LEVEL: INFO
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=2); sys.exit(0)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

@@ -348,6 +348,13 @@ export class PlansService {
       ) {
         throw new ConflictException('Bu tarih ve problem tipi için zaten bir plan var');
       }
+
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2034'
+      ) {
+        throw new ConflictException('İşlem çakışması oluştu; lütfen tekrar deneyin');
+      }
       throw error;
     }
 

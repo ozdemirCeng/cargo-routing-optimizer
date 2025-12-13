@@ -52,6 +52,9 @@ describe('PlansService', () => {
       overrides?.parametersService ?? parametersService,
     );
 
+    // Keep test output clean: some cases intentionally exercise error paths.
+    jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
+
     return { service, prisma, httpService, configService, stationsService, vehiclesService, routingService, parametersService };
   }
 

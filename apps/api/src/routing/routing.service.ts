@@ -1,9 +1,17 @@
-import { Injectable, ServiceUnavailableException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ServiceUnavailableException,
+  Logger,
+  NotFoundException,
+  GatewayTimeoutException,
+  BadGatewayException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { firstValueFrom } from 'rxjs';
 import { getRequestId } from '../common/request-context';
+import type { AxiosError } from 'axios';
 
 type OsrmRouteResponse = {
   code: string;
@@ -58,7 +66,7 @@ export class RoutingService {
     ]);
 
     if (!fromStation || !toStation) {
-      throw new Error('Station not found');
+      throw new NotFoundException('Station not found');
     }
 
     // OSRM'den hesapla
@@ -112,8 +120,20 @@ export class RoutingService {
         polyline: route.geometry,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error('OSRM error', message);
+      const axiosError = error as AxiosError<any>;
+      const status = axiosError.response?.status;
+      const code = (axiosError as any)?.code as string | undefined;
+      const message = axiosError.message || (error instanceof Error ? error.message : String(error));
+
+      this.logger.error('OSRM error', axiosError.response?.data || { status, code, message });
+
+      if (code === 'ECONNABORTED') {
+        throw new GatewayTimeoutException('OSRM zaman aşımına uğradı');
+      }
+
+      if (status && status >= 500) {
+        throw new BadGatewayException('OSRM servis hatası');
+      }
 
       if (!this.allowHaversineFallback) {
         throw new ServiceUnavailableException(

@@ -57,6 +57,29 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3001
 
+  docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build & start (compose)
+        run: docker compose -f docker-compose.ci.yml up -d --build --wait --wait-timeout 120
+
+      - name: Smoke (API health)
+        run: curl -fsS http://localhost:3001/api/health
+
+      - name: Smoke (Optimizer health)
+        run: curl -fsS http://localhost:5000/health
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.ci.yml logs --no-color
+
+      - name: Shutdown
+        if: always()
+        run: docker compose -f docker-compose.ci.yml down -v
+
   python:
     runs-on: ubuntu-latest
     timeout-minutes: 10

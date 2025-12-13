@@ -3,7 +3,8 @@
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/store/auth';
 
 const theme = createTheme({
   palette: {
@@ -44,6 +45,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   );
+
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+  useEffect(() => {
+    void checkAuth();
+  }, [checkAuth]);
 
   return (
     <QueryClientProvider client={queryClient}>

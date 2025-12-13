@@ -22,7 +22,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let message: string | string[] = 'Internal server error';
     let error = 'InternalServerError';
 
-    if (exception instanceof HttpException) {
+    const anyException = exception as any;
+
+    // Normalize DB connectivity failures (Prisma) to 503 without leaking connection details.
+    if (
+      anyException &&
+      (anyException.name === 'PrismaClientInitializationError' ||
+        anyException.name === 'PrismaClientUnknownRequestError') &&
+      (anyException.errorCode === 'P1001' || anyException.code === 'P1001')
+    ) {
+      status = HttpStatus.SERVICE_UNAVAILABLE;
+      message = 'Database is not reachable';
+      error = 'ServiceUnavailable';
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const resBody = exception.getResponse() as any;
 
