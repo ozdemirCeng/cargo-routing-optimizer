@@ -35,17 +35,21 @@ jobs:
         run: npm --prefix apps/api run db:migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
 
-      - name: Prisma migrate deploy (API)
-        run: npm --prefix apps/api run db:migrate
+      - name: DB smoke (API)
+        if: ${{ secrets.DATABASE_URL != '' }}
+        run: npm --prefix apps/api run db:smoke
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
 
       - name: Test API
         run: npm --prefix apps/api test
         env:
           NODE_ENV: test
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://user:pass@localhost:5432/db' }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://user:pass@localhost:5432/db' }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL || 'postgresql://user:pass@localhost:5432/db' }}
           JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci_dummy_secret' }}
 
       - name: Build Web
