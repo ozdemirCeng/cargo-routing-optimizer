@@ -2,17 +2,34 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
+import compression from 'compression';
 import { AppModule } from './app.module';
+import { requestIdMiddleware } from './common/middleware/request-id.middleware';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  app.disable('x-powered-by');
+  app.use(requestIdMiddleware);
+  app.use(helmet());
+  app.use(compression());
+
   // Global prefix
   app.setGlobalPrefix('api');
 
+  const configService = app.get(ConfigService);
+
   // CORS
+  const corsOrigin = (configService.get<string>('CORS_ORIGIN') || 'http://localhost:3000')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: corsOrigin,
     credentials: true,
   });
 
@@ -25,6 +42,9 @@ async function bootstrap() {
     }),
   );
 
+  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
+
   // Swagger
   const config = new DocumentBuilder()
     .setTitle('Kargo İşletme Sistemi API')
@@ -35,7 +55,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = process.env.PORT || 3001;
+  const port = configService.get<number>('PORT') || 3001;
   await app.listen(port);
   console.log(`🚀 Kargo API running on: http://localhost:${port}`);
   console.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);

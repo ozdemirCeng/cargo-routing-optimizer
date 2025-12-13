@@ -36,6 +36,9 @@ mkdir osrm-data
 docker run -t -v ${PWD}/osrm-data:/data osrm/osrm-backend osrm-extract -p /opt/car.lua /data/turkey-latest.osm.pbf
 docker run -t -v ${PWD}/osrm-data:/data osrm/osrm-backend osrm-partition /data/turkey-latest.osrm
 docker run -t -v ${PWD}/osrm-data:/data osrm/osrm-backend osrm-customize /data/turkey-latest.osrm
+
+# OSRM sunucusunu başlatın (varsayılan: 5001)
+docker run -d --name kargo-osrm -p 5001:5000 -v ${PWD}/osrm-data:/data osrm/osrm-backend osrm-routed --algorithm mld /data/turkey-latest.osrm
 ```
 
 ## Adım 3: API Başlatma (Yerel Geliştirme)
@@ -57,6 +60,7 @@ npm run start:dev
 ```
 
 API http://localhost:3001 adresinde çalışacak.
+Swagger: http://localhost:3001/api/docs
 
 ## Adım 4: Optimizer Başlatma (Yerel Geliştirme)
 

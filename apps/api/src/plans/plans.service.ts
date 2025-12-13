@@ -159,7 +159,7 @@ export class PlansService {
     };
 
     // 7. Optimizer'ı çağır
-    const optimizerUrl = this.configService.get<string>('OPTIMIZER_URL') || 'http://localhost:8000';
+    const optimizerUrl = this.configService.get<string>('OPTIMIZER_URL') || 'http://localhost:5000';
     let optimizerResult: any;
 
     try {

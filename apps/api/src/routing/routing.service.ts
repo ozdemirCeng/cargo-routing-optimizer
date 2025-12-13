@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,13 +16,16 @@ type OsrmRouteResponse = {
 @Injectable()
 export class RoutingService {
   private osrmUrl: string;
+  private allowHaversineFallback: boolean;
 
   constructor(
     private prisma: PrismaService,
     private httpService: HttpService,
     private configService: ConfigService,
   ) {
-    this.osrmUrl = this.configService.get<string>('OSRM_URL') || 'http://localhost:5000';
+    this.osrmUrl = this.configService.get<string>('OSRM_URL') || 'http://localhost:5001';
+    this.allowHaversineFallback =
+      String(this.configService.get<string>('ALLOW_HAVERSINE_FALLBACK') || '').toLowerCase() === 'true';
   }
 
   // İki istasyon arası mesafe ve polyline
@@ -99,12 +102,19 @@ export class RoutingService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('OSRM error:', message);
-      // Fallback: Haversine mesafesi (kuş uçuşu - sadece OSRM çalışmazsa)
+
+      if (!this.allowHaversineFallback) {
+        throw new ServiceUnavailableException(
+          'OSRM servisinden rota hesaplanamadı. Lütfen OSRM_URL ayarını ve OSRM servisinin çalıştığını kontrol edin.',
+        );
+      }
+
+      // Fallback (debug only): Haversine mesafesi
       const distance = this.haversineDistance(fromLat, fromLon, toLat, toLon);
       return {
-        distance_km: distance * 1.3, // Yol faktörü
-        duration_minutes: (distance * 1.3) / 50 * 60, // 50 km/h ortalama
-        polyline: '', // Polyline yok
+        distance_km: distance * 1.3,
+        duration_minutes: ((distance * 1.3) / 50) * 60,
+        polyline: '',
       };
     }
   }

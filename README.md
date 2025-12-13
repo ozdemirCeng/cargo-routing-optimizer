@@ -53,8 +53,10 @@ docker-compose logs -f
 |--------|-----|----------|
 | Web UI | http://localhost:3000 | Next.js Frontend |
 | API | http://localhost:3001 | NestJS Backend |
-| API Docs | http://localhost:3001/api | Swagger UI |
+| API Docs | http://localhost:3001/api/docs | Swagger UI |
 | Optimizer | http://localhost:5000 | Python VRP Solver |
+| Health | http://localhost:3001/api/health | Liveness |
+| Ready | http://localhost:3001/api/health/ready | Readiness (DB) |
 
 ### Varsayılan Kullanıcılar
 

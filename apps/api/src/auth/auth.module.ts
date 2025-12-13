@@ -14,7 +14,7 @@ import { UsersModule } from '../users/users.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'super-secret-key',
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
           // NestJS JWT v11 types expect `number | StringValue` (ms-format).
           // Config values are runtime strings, so we cast to keep behavior unchanged.
