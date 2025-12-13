@@ -227,7 +227,8 @@ export class PlansService {
     // 8-9. Plan + rotalar + atamalar (atomik)
     let planId: string;
     try {
-      planId = await this.prisma.$transaction(async (tx) => {
+      planId = await this.prisma.$transaction(
+        async (tx) => {
         const plan = await tx.plan.create({
           data: {
             planDate,
@@ -300,7 +301,9 @@ export class PlansService {
         }
 
         return plan.id;
-      });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
