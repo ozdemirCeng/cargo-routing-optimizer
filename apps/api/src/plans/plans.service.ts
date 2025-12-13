@@ -18,6 +18,7 @@ import { CreatePlanDto } from './dto/create-plan.dto';
 import { firstValueFrom } from 'rxjs';
 import type { AxiosError } from 'axios';
 import { Prisma } from '@prisma/client';
+import { getRequestId } from '../common/request-context';
 
 type OptimizerResponse = {
   success: boolean;
@@ -201,11 +202,15 @@ export class PlansService {
     let optimizerResult: any;
 
     try {
+      const requestId = getRequestId();
       const response = await firstValueFrom(
         this.httpService.post<OptimizerResponse>(
           `${optimizerUrl}/optimize`,
           optimizerInput,
-          { timeout: optimizerTimeoutMs },
+          {
+            timeout: optimizerTimeoutMs,
+            headers: requestId ? { 'x-request-id': requestId } : undefined,
+          },
         ),
       );
       optimizerResult = response.data;

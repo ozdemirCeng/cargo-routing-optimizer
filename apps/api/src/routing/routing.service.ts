@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { firstValueFrom } from 'rxjs';
+import { getRequestId } from '../common/request-context';
 
 type OsrmRouteResponse = {
   code: string;
@@ -90,9 +91,13 @@ export class RoutingService {
     toLat: number,
   ): Promise<{ distance_km: number; duration_minutes: number; polyline: string }> {
     try {
+      const requestId = getRequestId();
       const url = `${this.osrmUrl}/route/v1/driving/${fromLon},${fromLat};${toLon},${toLat}?overview=full&geometries=polyline`;
       const response = await firstValueFrom(
-        this.httpService.get<OsrmRouteResponse>(url, { timeout: this.osrmTimeoutMs }),
+        this.httpService.get<OsrmRouteResponse>(url, {
+          timeout: this.osrmTimeoutMs,
+          headers: requestId ? { 'x-request-id': requestId } : undefined,
+        }),
       );
       const data = response.data;
 
