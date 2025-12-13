@@ -4,6 +4,15 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { firstValueFrom } from 'rxjs';
 
+type OsrmRouteResponse = {
+  code: string;
+  routes?: Array<{
+    distance: number;
+    duration: number;
+    geometry: string;
+  }>;
+};
+
 @Injectable()
 export class RoutingService {
   private osrmUrl: string;
@@ -74,20 +83,22 @@ export class RoutingService {
   ): Promise<{ distance_km: number; duration_minutes: number; polyline: string }> {
     try {
       const url = `${this.osrmUrl}/route/v1/driving/${fromLon},${fromLat};${toLon},${toLat}?overview=full&geometries=polyline`;
-      const response = await firstValueFrom(this.httpService.get(url));
+      const response = await firstValueFrom(this.httpService.get<OsrmRouteResponse>(url));
+      const data = response.data;
 
-      if (response.data.code !== 'Ok' || !response.data.routes?.length) {
+      if (data.code !== 'Ok' || !data.routes?.length) {
         throw new Error('OSRM routing failed');
       }
 
-      const route = response.data.routes[0];
+      const route = data.routes[0];
       return {
         distance_km: route.distance / 1000,
         duration_minutes: route.duration / 60,
         polyline: route.geometry,
       };
     } catch (error) {
-      console.error('OSRM error:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('OSRM error:', message);
       // Fallback: Haversine mesafesi (kuş uçuşu - sadece OSRM çalışmazsa)
       const distance = this.haversineDistance(fromLat, fromLon, toLat, toLon);
       return {

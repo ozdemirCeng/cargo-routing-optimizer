@@ -155,7 +155,7 @@ export class CargosService {
     const stationMap = new Map(stations.map(s => [s.id, s]));
     const orderedStations = stationIds.map((id, index) => ({
       order: index,
-      ...stationMap.get(id),
+      ...(stationMap.get(id) ?? {}),
     }));
 
     return {

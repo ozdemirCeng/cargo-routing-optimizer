@@ -8,6 +8,21 @@ import { RoutingService } from '../routing/routing.service';
 import { ParametersService } from '../parameters/parameters.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { firstValueFrom } from 'rxjs';
+import type { AxiosError } from 'axios';
+
+type OptimizerResponse = {
+  success: boolean;
+  summary: {
+    total_distance_km: number;
+    total_cost: number;
+    total_cargos: number;
+    total_weight_kg: number;
+    vehicles_used: number;
+    vehicles_rented: number;
+  };
+  routes: any[];
+  error?: { message?: string };
+};
 
 @Injectable()
 export class PlansService {
@@ -149,12 +164,15 @@ export class PlansService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post(`${optimizerUrl}/optimize`, optimizerInput),
+        this.httpService.post<OptimizerResponse>(`${optimizerUrl}/optimize`, optimizerInput),
       );
       optimizerResult = response.data;
     } catch (error) {
-      console.error('Optimizer error:', error.response?.data || error.message);
-      throw new BadRequestException('Optimizer hatası: ' + (error.response?.data?.detail || error.message));
+      const axiosError = error as AxiosError<any>;
+      const detail = (axiosError.response?.data as any)?.detail;
+      const message = axiosError.message || (error instanceof Error ? error.message : String(error));
+      console.error('Optimizer error:', axiosError.response?.data || message);
+      throw new BadRequestException('Optimizer hatası: ' + (detail || message));
     }
 
     if (!optimizerResult.success) {

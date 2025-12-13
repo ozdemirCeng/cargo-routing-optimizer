@@ -16,7 +16,9 @@ import { UsersModule } from '../users/users.module';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET') || 'super-secret-key',
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '7d',
+          // NestJS JWT v11 types expect `number | StringValue` (ms-format).
+          // Config values are runtime strings, so we cast to keep behavior unchanged.
+          expiresIn: (configService.get<string>('JWT_EXPIRES_IN') || '7d') as any,
         },
       }),
       inject: [ConfigService],

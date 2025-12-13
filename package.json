@@ -9,9 +9,9 @@
   ],
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:optimizer\"",
-    "dev:api": "cd apps/api && npm run start:dev",
-    "dev:web": "cd apps/web && npm run dev",
-    "dev:optimizer": "cd apps/optimizer && python -m uvicorn main:app --reload --port 5000",
+    "dev:api": "npx ts-node -P apps/api/tsconfig.json -r tsconfig-paths/register apps/api/src/main.ts",
+    "dev:web": "cd apps/web && npx next dev",
+    "dev:optimizer": "cd apps/optimizer && ../../.venv/Scripts/python.exe -m uvicorn main:app --reload --port 5000",
     "build": "npm run build:api && npm run build:web",
     "build:api": "cd apps/api && npm run build",
     "build:web": "cd apps/web && npm run build",
@@ -24,6 +24,12 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "overrides": {
+    "@nestjs/common": "11.1.9",
+    "@nestjs/core": "11.1.9",
+    "@nestjs/platform-express": "11.1.9",
+    "rxjs": "7.8.2"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.venv/
 venv/
 __pycache__/
 
@@ -36,8 +37,19 @@ npm-debug.log*
 # OSRM data (large files)
 osrm-data/
 
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
 # Misc
 *.egg
 *.egg-info/
-*.pdf
 *.pdf
