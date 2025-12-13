@@ -19,6 +19,8 @@ export class RoutingService {
   private allowHaversineFallback: boolean;
   private osrmTimeoutMs: number;
 
+  private readonly matrixConcurrency = 6;
+
   constructor(
     private prisma: PrismaService,
     private httpService: HttpService,
@@ -139,17 +141,30 @@ export class RoutingService {
       );
     }
 
-    // Her çift için mesafe hesapla
+    const pairs: Array<{ fromId: string; toId: string; key: string }> = [];
     for (const fromId of stationIds) {
       for (const toId of stationIds) {
         if (fromId === toId) continue;
-
-        const key = `${fromId}_${toId}`;
-        
-        const distance = await this.getDistance(fromId, toId);
-        matrix[key] = distance;
+        pairs.push({ fromId, toId, key: `${fromId}_${toId}` });
       }
     }
+
+    let nextIndex = 0;
+    const workers = Array.from(
+      { length: Math.min(this.matrixConcurrency, pairs.length) },
+      async () => {
+        while (true) {
+          const current = nextIndex++;
+          if (current >= pairs.length) return;
+          const pair = pairs[current];
+
+          const distance = await this.getDistance(pair.fromId, pair.toId);
+          matrix[pair.key] = distance;
+        }
+      },
+    );
+
+    await Promise.all(workers);
 
     return matrix;
   }
