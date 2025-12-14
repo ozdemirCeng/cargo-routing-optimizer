@@ -1,0 +1,19 @@
+# Bütün metin dosyalarını otomatik yönet (Repo'da LF tut, Windows'ta CRLF göster)
+* text=auto
+
+# Özel dosya türleri için kesin kurallar
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+
+# Resim vb. dosyaları sakın elleme
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

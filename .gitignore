@@ -6,6 +6,7 @@ __pycache__/
 
 # Build outputs
 dist/
+build/
 .next/
 out/
 *.pyc
@@ -15,16 +16,23 @@ out/
 .env
 .env.local
 .env*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*.code-workspace
 
 # OS
 .DS_Store
 Thumbs.db
+.AppleDouble
+.LSOverride
+._*
 
 # Logs
 *.log
@@ -40,6 +48,8 @@ osrm-data/
 # Package manager
 package-lock.json
 yarn.lock
+yarn-debug.log*
+yarn-error.log*
 pnpm-lock.yaml
 
 # TypeScript cache
