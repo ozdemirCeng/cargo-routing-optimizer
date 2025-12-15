@@ -31,14 +31,16 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://user:pass@localhost:5432/db' }}
 
       - name: Prisma migrate deploy (API)
-        if: ${{ secrets.DATABASE_URL != '' }}
+        # HATA BURADAYDI: ${{ }} kaldırıldı
+        if: secrets.DATABASE_URL != ''
         run: npm --prefix apps/api run db:migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
 
       - name: DB smoke (API)
-        if: ${{ secrets.DATABASE_URL != '' }}
+        # HATA BURADAYDI: ${{ }} kaldırıldı
+        if: secrets.DATABASE_URL != ''
         run: npm --prefix apps/api run db:smoke
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
