@@ -9,6 +9,10 @@ jobs:
   node:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # ÇÖZÜM BURADA: Secret'ı önce global bir değişkene atıyoruz
+    env:
+      HAS_DB_SECRET: ${{ secrets.DATABASE_URL }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -31,16 +35,16 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://user:pass@localhost:5432/db' }}
 
       - name: Prisma migrate deploy (API)
-        # HATA BURADAYDI: ${{ }} kaldırıldı
-        if: secrets.DATABASE_URL != ''
+        # ARTIK 'secrets' YERİNE 'env' KULLANIYORUZ (HATA VERMEZ)
+        if: env.HAS_DB_SECRET != ''
         run: npm --prefix apps/api run db:migrate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
 
       - name: DB smoke (API)
-        # HATA BURADAYDI: ${{ }} kaldırıldı
-        if: secrets.DATABASE_URL != ''
+        # BURAYI DA DÜZELTTİK
+        if: env.HAS_DB_SECRET != ''
         run: npm --prefix apps/api run db:smoke
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
