@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { UserRole } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class UsersService {
@@ -51,7 +50,7 @@ export class UsersService {
         email: data.email,
         passwordHash: data.passwordHash,
         fullName: data.fullName,
-        role: data.role as UserRole,
+        role: data.role as any,
       },
       select: {
         id: true,
@@ -64,7 +63,10 @@ export class UsersService {
     });
   }
 
-  async update(id: string, data: Partial<{ fullName: string; isActive: boolean }>) {
+  async update(
+    id: string,
+    data: Partial<{ fullName: string; isActive: boolean }>
+  ) {
     return this.prisma.user.update({
       where: { id },
       data,

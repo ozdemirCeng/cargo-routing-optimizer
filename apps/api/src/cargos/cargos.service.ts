@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateCargoDto } from './dto/create-cargo.dto';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateCargoDto } from "./dto/create-cargo.dto";
 
 @Injectable()
 export class CargosService {
@@ -8,23 +12,27 @@ export class CargosService {
 
   // Tracking code generator
   private generateTrackingCode(): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = 'KRG-';
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let result = "KRG-";
     for (let i = 0; i < 8; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
   }
 
-  async findAll(userId: string, role: string, filters?: {
-    status?: string;
-    date?: Date;
-    stationId?: string;
-  }) {
+  async findAll(
+    userId: string,
+    role: string,
+    filters?: {
+      status?: string;
+      date?: Date;
+      stationId?: string;
+    }
+  ) {
     const where: any = {};
 
     // RBAC: User sadece kendi kargolarını görür
-    if (role !== 'admin') {
+    if (role !== "admin") {
       where.userId = userId;
     }
 
@@ -50,7 +58,7 @@ export class CargosService {
           select: { id: true, fullName: true, email: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -76,12 +84,12 @@ export class CargosService {
     });
 
     if (!cargo) {
-      throw new NotFoundException('Cargo not found');
+      throw new NotFoundException("Cargo not found");
     }
 
     // RBAC: User sadece kendi kargosunu görebilir
-    if (role !== 'admin' && cargo.userId !== userId) {
-      throw new ForbiddenException('Access denied');
+    if (role !== "admin" && cargo.userId !== userId) {
+      throw new ForbiddenException("Access denied");
     }
 
     return cargo;
@@ -93,7 +101,7 @@ export class CargosService {
       where: { id: data.originStationId },
     });
     if (!station || !station.isActive) {
-      throw new NotFoundException('Station not found');
+      throw new NotFoundException("Station not found");
     }
 
     // Hub'u bul (destination)
@@ -109,7 +117,9 @@ export class CargosService {
         destinationStationId: hub?.id,
         weightKg: data.weightKg,
         description: data.description,
-        scheduledDate: data.scheduledDate ? new Date(data.scheduledDate) : undefined,
+        scheduledDate: data.scheduledDate
+          ? new Date(data.scheduledDate)
+          : undefined,
       },
       include: {
         originStation: true,
@@ -136,12 +146,12 @@ export class CargosService {
     });
 
     if (!cargo) {
-      throw new NotFoundException('Cargo not found');
+      throw new NotFoundException("Cargo not found");
     }
 
     // RBAC: User sadece kendi kargosunun rotasını görebilir
-    if (role !== 'admin' && cargo.userId !== userId) {
-      throw new ForbiddenException('Bu kargo size ait değil');
+    if (role !== "admin" && cargo.userId !== userId) {
+      throw new ForbiddenException("Bu kargo size ait değil");
     }
 
     if (!cargo.planRouteCargos.length) {
@@ -149,18 +159,36 @@ export class CargosService {
     }
 
     const planRoute = cargo.planRouteCargos[0].planRoute;
-    
+
     // Route stations'ı çöz
     const stationIds = planRoute.routeStations;
     const stations = await this.prisma.station.findMany({
       where: { id: { in: stationIds } },
     });
 
-    const stationMap = new Map(stations.map(s => [s.id, s]));
-    const orderedStations = stationIds.map((id, index) => ({
-      order: index,
-      ...(stationMap.get(id) ?? {}),
-    }));
+    type StationType = (typeof stations)[number];
+    const stationMap = new Map<string, StationType>(
+      stations.map((s) => [s.id, s])
+    );
+    const orderedStations = stationIds.map((id, index) => {
+      const station = stationMap.get(id);
+      if (!station) {
+        return {
+          order: index,
+          id,
+          name: "Unknown",
+          latitude: null,
+          longitude: null,
+        };
+      }
+      return {
+        order: index,
+        id: station.id,
+        name: station.name,
+        latitude: station.latitude,
+        longitude: station.longitude,
+      };
+    });
 
     return {
       vehicleId: planRoute.vehicleId,

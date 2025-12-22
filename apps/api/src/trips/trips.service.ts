@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class TripsService {
@@ -10,6 +10,7 @@ export class TripsService {
     vehicleId?: string;
     startDate?: Date;
     endDate?: Date;
+    limit?: number;
   }) {
     const where: any = {};
     if (filters?.status) where.status = filters.status;
@@ -20,21 +21,29 @@ export class TripsService {
       if (filters.endDate) where.createdAt.lte = filters.endDate;
     }
 
+    // Simplified query for list view - no heavy includes
     return this.prisma.trip.findMany({
       where,
-      include: {
-        vehicle: true,
+      take: filters?.limit || 20,
+      select: {
+        id: true,
+        status: true,
+        actualCost: true,
+        startedAt: true,
+        completedAt: true,
+        createdAt: true,
+        vehicle: {
+          select: { id: true, name: true, plateNumber: true },
+        },
         planRoute: {
-          include: {
-            plan: true,
+          select: {
+            id: true,
+            cargoCount: true,
+            totalDistanceKm: true,
           },
         },
-        logs: {
-          include: { station: true },
-          orderBy: { eventTime: 'asc' },
-        },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -60,13 +69,13 @@ export class TripsService {
         },
         logs: {
           include: { station: true },
-          orderBy: { eventTime: 'asc' },
+          orderBy: { eventTime: "asc" },
         },
       },
     });
 
     if (!trip) {
-      throw new NotFoundException('Trip not found');
+      throw new NotFoundException("Trip not found");
     }
 
     return trip;
@@ -79,7 +88,7 @@ export class TripsService {
     await this.prisma.trip.update({
       where: { id },
       data: {
-        status: 'in_progress',
+        status: "in_progress",
         startedAt: new Date(),
       },
     });
@@ -88,8 +97,8 @@ export class TripsService {
     await this.prisma.tripLog.create({
       data: {
         tripId: id,
-        eventType: 'departed',
-        notes: 'Sefer başladı',
+        eventType: "departed",
+        notes: "Sefer başladı",
       },
     });
 
@@ -98,7 +107,7 @@ export class TripsService {
       for (const prc of trip.planRoute.cargos) {
         await this.prisma.cargo.update({
           where: { id: prc.cargoId },
-          data: { status: 'in_transit' },
+          data: { status: "in_transit" },
         });
       }
     }
@@ -106,7 +115,7 @@ export class TripsService {
     // Aracı on_route yap
     await this.prisma.vehicle.update({
       where: { id: trip.vehicleId },
-      data: { status: 'on_route' },
+      data: { status: "on_route" },
     });
 
     return this.findById(id);
@@ -118,13 +127,14 @@ export class TripsService {
     // Süre ve mesafe hesapla
     const startedAt = trip.startedAt || new Date();
     const completedAt = new Date();
-    const durationMinutes = (completedAt.getTime() - startedAt.getTime()) / 60000;
+    const durationMinutes =
+      (completedAt.getTime() - startedAt.getTime()) / 60000;
 
     // Trip'i tamamla
     await this.prisma.trip.update({
       where: { id },
       data: {
-        status: 'completed',
+        status: "completed",
         completedAt,
         actualDurationMinutes: durationMinutes,
         actualDistanceKm: trip.planRoute?.totalDistanceKm,
@@ -136,8 +146,8 @@ export class TripsService {
     await this.prisma.tripLog.create({
       data: {
         tripId: id,
-        eventType: 'arrived',
-        notes: 'Sefer tamamlandı',
+        eventType: "arrived",
+        notes: "Sefer tamamlandı",
       },
     });
 
@@ -146,7 +156,7 @@ export class TripsService {
       for (const prc of trip.planRoute.cargos) {
         await this.prisma.cargo.update({
           where: { id: prc.cargoId },
-          data: { status: 'delivered' },
+          data: { status: "delivered" },
         });
       }
     }
@@ -154,13 +164,18 @@ export class TripsService {
     // Aracı available yap
     await this.prisma.vehicle.update({
       where: { id: trip.vehicleId },
-      data: { status: 'available' },
+      data: { status: "available" },
     });
 
     return this.findById(id);
   }
 
-  async addLog(tripId: string, stationId: string | null, eventType: string, notes?: string) {
+  async addLog(
+    tripId: string,
+    stationId: string | null,
+    eventType: string,
+    notes?: string
+  ) {
     return this.prisma.tripLog.create({
       data: {
         tripId,

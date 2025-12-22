@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateVehicleDto } from "./dto/create-vehicle.dto";
-import { VehicleOwnership } from "@prisma/client";
 
 @Injectable()
 export class VehiclesService {
@@ -40,7 +39,7 @@ export class VehiclesService {
         plateNumber: data.plateNumber,
         name: data.name,
         capacityKg: data.capacityKg,
-        ownership: (data.ownership || "owned") as VehicleOwnership,
+        ownership: (data.ownership || "owned") as any,
         rentalCost: data.rentalCost || 0,
       },
     });

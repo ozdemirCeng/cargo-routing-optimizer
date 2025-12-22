@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 @Injectable()
 export class DashboardService {
@@ -18,24 +18,24 @@ export class DashboardService {
       completedTrips,
     ] = await Promise.all([
       this.prisma.cargo.count(),
-      this.prisma.cargo.count({ where: { status: 'pending' } }),
+      this.prisma.cargo.count({ where: { status: "pending" } }),
       this.prisma.vehicle.count({ where: { isActive: true } }),
-      this.prisma.trip.count({ where: { status: 'in_progress' } }),
+      this.prisma.trip.count({ where: { status: "in_progress" } }),
       this.prisma.plan.count({
         where: {
           planDate: { gte: today },
-          status: { in: ['draft', 'active'] },
+          status: { in: ["draft", "active"] },
         },
       }),
       this.prisma.trip.findMany({
-        where: { status: 'completed' },
+        where: { status: "completed" },
         select: { actualCost: true },
       }),
     ]);
 
     const totalCostToday = completedTrips.reduce(
       (sum, t) => sum + Number(t.actualCost || 0),
-      0,
+      0
     );
 
     return {
@@ -69,18 +69,32 @@ export class DashboardService {
     });
 
     const vehicleCosts = routes.map((route) => {
-      const users = [...new Set(route.cargos.map((c) => c.cargo.user))];
+      const usersMap = new Map<
+        string,
+        { id: string; fullName: string; email: string }
+      >();
+      route.cargos.forEach((c) => {
+        if (c.cargo.user && !usersMap.has(c.cargo.user.id)) {
+          usersMap.set(c.cargo.user.id, c.cargo.user);
+        }
+      });
+      const users = Array.from(usersMap.values());
       return {
         vehicleId: route.vehicleId,
         vehicleName: route.vehicle.name,
         plateNumber: route.vehicle.plateNumber,
-        distanceCost: Number(route.totalDistanceKm) * Number(route.plan.costPerKm || 1),
-        rentalCost: route.vehicle.ownership === 'rented' ? Number(route.vehicle.rentalCost) : 0,
+        distanceCost:
+          Number(route.totalDistanceKm) * Number(route.plan.costPerKm || 1),
+        rentalCost:
+          route.vehicle.ownership === "rented"
+            ? Number(route.vehicle.rentalCost)
+            : 0,
         totalCost: Number(route.totalCost),
         cargoCount: route.cargoCount,
         totalWeightKg: Number(route.totalWeightKg),
         capacityUtilization:
-          (Number(route.totalWeightKg) / Number(route.vehicle.capacityKg)) * 100,
+          (Number(route.totalWeightKg) / Number(route.vehicle.capacityKg)) *
+          100,
         users: users.map((u) => ({
           id: u.id,
           name: u.fullName,
@@ -118,8 +132,12 @@ export class DashboardService {
       totalWeightKg: Number(plan.totalWeightKg),
       vehiclesUsed: plan.vehiclesUsed,
       vehiclesRented: plan.vehiclesRented,
-      avgCostPerCargo: plan.totalCargos ? Number(plan.totalCost) / plan.totalCargos : 0,
-      avgCostPerKm: Number(plan.totalDistanceKm) ? Number(plan.totalCost) / Number(plan.totalDistanceKm) : 0,
+      avgCostPerCargo: plan.totalCargos
+        ? Number(plan.totalCost) / plan.totalCargos
+        : 0,
+      avgCostPerKm: Number(plan.totalDistanceKm)
+        ? Number(plan.totalCost) / Number(plan.totalDistanceKm)
+        : 0,
     }));
   }
 }

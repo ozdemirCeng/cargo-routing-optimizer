@@ -6,19 +6,18 @@ import {
   ServiceUnavailableException,
   GatewayTimeoutException,
   Logger,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
-import { StationsService } from '../stations/stations.service';
-import { VehiclesService } from '../vehicles/vehicles.service';
-import { RoutingService } from '../routing/routing.service';
-import { ParametersService } from '../parameters/parameters.service';
-import { CreatePlanDto } from './dto/create-plan.dto';
-import { firstValueFrom } from 'rxjs';
-import type { AxiosError } from 'axios';
-import { Prisma } from '@prisma/client';
-import { getRequestId } from '../common/request-context';
+} from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../prisma/prisma.service";
+import { StationsService } from "../stations/stations.service";
+import { VehiclesService } from "../vehicles/vehicles.service";
+import { RoutingService } from "../routing/routing.service";
+import { ParametersService } from "../parameters/parameters.service";
+import { CreatePlanDto } from "./dto/create-plan.dto";
+import { firstValueFrom } from "rxjs";
+import type { AxiosError } from "axios";
+import { getRequestId } from "../common/request-context";
 
 type OptimizerResponse = {
   success: boolean;
@@ -45,7 +44,7 @@ export class PlansService {
     private stationsService: StationsService,
     private vehiclesService: VehiclesService,
     private routingService: RoutingService,
-    private parametersService: ParametersService,
+    private parametersService: ParametersService
   ) {}
 
   async findAll(filters?: { status?: string; date?: Date }) {
@@ -71,7 +70,7 @@ export class PlansService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
@@ -96,13 +95,13 @@ export class PlansService {
               },
             },
           },
-          orderBy: { routeOrder: 'asc' },
+          orderBy: { routeOrder: "asc" },
         },
       },
     });
 
     if (!plan) {
-      throw new NotFoundException('Plan not found');
+      throw new NotFoundException("Plan not found");
     }
 
     return plan;
@@ -127,37 +126,47 @@ export class PlansService {
     });
 
     if (existingPlan) {
-      throw new ConflictException('Bu tarih ve problem tipi için zaten bir plan var');
+      throw new ConflictException(
+        "Bu tarih ve problem tipi için zaten bir plan var"
+      );
     }
 
     // 1. İstasyon özetini al (o gün için kargo olan istasyonlar)
-    const stationSummary = await this.stationsService.getStationSummary(planDate);
-    const stationsWithCargo = stationSummary.filter((s) => s.cargoCount > 0 && !s.isHub);
+    const stationSummary =
+      await this.stationsService.getStationSummary(planDate);
+    const stationsWithCargo = stationSummary.filter(
+      (s) => s.cargoCount > 0 && !s.isHub
+    );
 
     if (stationsWithCargo.length === 0) {
-      throw new BadRequestException('Bu tarih için kargo bulunmuyor');
+      throw new BadRequestException("Bu tarih için kargo bulunmuyor");
     }
 
     // 2. Hub'u bul
     const hub = await this.stationsService.findHub();
     if (!hub) {
-      throw new BadRequestException('Hub istasyonu tanımlı değil');
+      throw new BadRequestException("Hub istasyonu tanımlı değil");
     }
 
     // 3. Mevcut araçları al
     const vehicles = await this.vehiclesService.findAvailable();
     if (vehicles.length === 0) {
-      throw new BadRequestException('Müsait araç bulunmuyor');
+      throw new BadRequestException("Müsait araç bulunmuyor");
     }
 
     // 4. Parametreleri al
     const params = await this.parametersService.getAll();
     const costPerKm = data.parameters?.costPerKm || params.cost_per_km || 1;
-    const rentalCost = data.parameters?.rentalCost || params.rental_cost_500kg || 200;
+    const rentalCost =
+      data.parameters?.rentalCost || params.rental_cost_500kg || 200;
 
     // 5. Distance matrix'i hazırla
-    const allStationIds = [hub.id, ...stationsWithCargo.map((s) => s.stationId)];
-    const distanceMatrix = await this.routingService.getDistanceMatrix(allStationIds);
+    const allStationIds = [
+      hub.id,
+      ...stationsWithCargo.map((s) => s.stationId),
+    ];
+    const distanceMatrix =
+      await this.routingService.getDistanceMatrix(allStationIds);
 
     // 6. Optimizer input hazırla
     const optimizerInput = {
@@ -196,9 +205,11 @@ export class PlansService {
     };
 
     // 7. Optimizer'ı çağır
-    const optimizerUrl = this.configService.get<string>('OPTIMIZER_URL') || 'http://localhost:5000';
+    const optimizerUrl =
+      this.configService.get<string>("OPTIMIZER_URL") ||
+      "http://localhost:5000";
     const optimizerTimeoutMs =
-      this.configService.get<number>('OPTIMIZER_TIMEOUT_MS') || 15000;
+      this.configService.get<number>("OPTIMIZER_TIMEOUT_MS") || 15000;
     let optimizerResult: any;
 
     try {
@@ -209,41 +220,50 @@ export class PlansService {
           optimizerInput,
           {
             timeout: optimizerTimeoutMs,
-            headers: requestId ? { 'x-request-id': requestId } : undefined,
-          },
-        ),
+            headers: requestId ? { "x-request-id": requestId } : undefined,
+          }
+        )
       );
       optimizerResult = response.data;
     } catch (error) {
       const axiosError = error as AxiosError<any>;
       const detail = (axiosError.response?.data as any)?.detail;
-      const message = axiosError.message || (error instanceof Error ? error.message : String(error));
+      const message =
+        axiosError.message ||
+        (error instanceof Error ? error.message : String(error));
 
       const status = axiosError.response?.status;
       const code = (axiosError as any)?.code as string | undefined;
-      this.logger.error('Optimizer error', axiosError.response?.data || { status, code, message });
+      this.logger.error(
+        "Optimizer error",
+        axiosError.response?.data || { status, code, message }
+      );
 
-      if (code === 'ECONNABORTED') {
-        throw new GatewayTimeoutException('Optimizer zaman aşımına uğradı');
+      if (code === "ECONNABORTED") {
+        throw new GatewayTimeoutException("Optimizer zaman aşımına uğradı");
       }
 
       if (!status) {
-        throw new ServiceUnavailableException('Optimizer servisine ulaşılamadı');
+        throw new ServiceUnavailableException(
+          "Optimizer servisine ulaşılamadı"
+        );
       }
 
       if (status >= 500) {
-        throw new ServiceUnavailableException('Optimizer servis hatası');
+        throw new ServiceUnavailableException("Optimizer servis hatası");
       }
 
-      throw new BadRequestException('Optimizer hatası: ' + (detail || message));
+      throw new BadRequestException("Optimizer hatası: " + (detail || message));
     }
 
     if (!optimizerResult.success) {
-      throw new BadRequestException('Optimizasyon başarısız: ' + optimizerResult.error?.message);
+      throw new BadRequestException(
+        "Optimizasyon başarısız: " + optimizerResult.error?.message
+      );
     }
 
     const allowedCargoIds = new Set(
-      stationsWithCargo.flatMap((s) => s.cargos.map((c: any) => c.id)),
+      stationsWithCargo.flatMap((s) => s.cargos.map((c: any) => c.id))
     );
     const allAssignedCargoIds: string[] = [];
     const seenAssignedCargoIds = new Set<string>();
@@ -251,10 +271,14 @@ export class PlansService {
       for (const assignedCargo of route.assigned_cargos) {
         const cargoId = String(assignedCargo.cargo_id);
         if (!allowedCargoIds.has(cargoId)) {
-          throw new BadRequestException('Optimizer beklenmeyen bir kargo döndürdü');
+          throw new BadRequestException(
+            "Optimizer beklenmeyen bir kargo döndürdü"
+          );
         }
         if (seenAssignedCargoIds.has(cargoId)) {
-          throw new BadRequestException('Optimizer aynı kargoyu birden fazla rota için atadı');
+          throw new BadRequestException(
+            "Optimizer aynı kargoyu birden fazla rota için atadı"
+          );
         }
         seenAssignedCargoIds.add(cargoId);
         allAssignedCargoIds.push(cargoId);
@@ -266,94 +290,100 @@ export class PlansService {
     try {
       planId = await this.prisma.$transaction(
         async (tx) => {
-        const plan = await tx.plan.create({
-          data: {
-            planDate,
-            problemType: data.problemType,
-            status: 'draft',
-            totalDistanceKm: optimizerResult.summary.total_distance_km,
-            totalCost: optimizerResult.summary.total_cost,
-            totalCargos: optimizerResult.summary.total_cargos,
-            totalWeightKg: optimizerResult.summary.total_weight_kg,
-            vehiclesUsed: optimizerResult.summary.vehicles_used,
-            vehiclesRented: optimizerResult.summary.vehicles_rented,
-            costPerKm,
-            rentalCost,
-            optimizerResult,
-            createdById: userId,
-          },
-        });
-
-        if (allAssignedCargoIds.length > 0) {
-          const updateRes = await tx.cargo.updateMany({
-            where: {
-              id: { in: allAssignedCargoIds },
-              status: 'pending',
-              scheduledDate: { gte: dayStart, lt: dayEnd },
-            },
-            data: { status: 'assigned' },
-          });
-
-          if (updateRes.count !== allAssignedCargoIds.length) {
-            throw new ConflictException(
-              'Bazı kargolar bu sırada başka bir plana atanmış; tekrar deneyin',
-            );
-          }
-        }
-
-        for (const route of optimizerResult.routes) {
-          const planRoute = await tx.planRoute.create({
+          const plan = await tx.plan.create({
             data: {
-              planId: plan.id,
-              vehicleId: route.vehicle_id,
-              routeOrder: route.route_order,
-              totalDistanceKm: route.total_distance_km,
-              totalDurationMin: route.total_duration_minutes,
-              totalCost: route.total_cost,
-              totalWeightKg: route.total_weight_kg,
-              cargoCount: route.cargo_count,
-              routeStations: route.route_sequence.map((s: any) => s.station_id),
-              routePolyline: route.polyline,
-              routeDetails: route.route_sequence,
+              planDate,
+              problemType: data.problemType,
+              status: "draft",
+              totalDistanceKm: optimizerResult.summary.total_distance_km,
+              totalCost: optimizerResult.summary.total_cost,
+              totalCargos: optimizerResult.summary.total_cargos,
+              totalWeightKg: optimizerResult.summary.total_weight_kg,
+              vehiclesUsed: optimizerResult.summary.vehicles_used,
+              vehiclesRented: optimizerResult.summary.vehicles_rented,
+              costPerKm,
+              rentalCost,
+              optimizerResult,
+              createdById: userId,
             },
           });
 
-          for (const assignedCargo of route.assigned_cargos) {
-            await tx.planRouteCargo.create({
+          if (allAssignedCargoIds.length > 0) {
+            const updateRes = await tx.cargo.updateMany({
+              where: {
+                id: { in: allAssignedCargoIds },
+                status: "pending",
+                scheduledDate: { gte: dayStart, lt: dayEnd },
+              },
+              data: { status: "assigned" },
+            });
+
+            if (updateRes.count !== allAssignedCargoIds.length) {
+              throw new ConflictException(
+                "Bazı kargolar bu sırada başka bir plana atanmış; tekrar deneyin"
+              );
+            }
+          }
+
+          for (const route of optimizerResult.routes) {
+            const planRoute = await tx.planRoute.create({
+              data: {
+                planId: plan.id,
+                vehicleId: route.vehicle_id,
+                routeOrder: route.route_order,
+                totalDistanceKm: route.total_distance_km,
+                totalDurationMin: route.total_duration_minutes,
+                totalCost: route.total_cost,
+                totalWeightKg: route.total_weight_kg,
+                cargoCount: route.cargo_count,
+                routeStations: route.route_sequence.map(
+                  (s: any) => s.station_id
+                ),
+                routePolyline: route.polyline,
+                routeDetails: route.route_sequence,
+              },
+            });
+
+            for (const assignedCargo of route.assigned_cargos) {
+              await tx.planRouteCargo.create({
+                data: {
+                  planRouteId: planRoute.id,
+                  cargoId: assignedCargo.cargo_id,
+                  pickupOrder: assignedCargo.pickup_order,
+                },
+              });
+            }
+
+            await tx.trip.create({
               data: {
                 planRouteId: planRoute.id,
-                cargoId: assignedCargo.cargo_id,
-                pickupOrder: assignedCargo.pickup_order,
+                vehicleId: route.vehicle_id,
+                status: "scheduled",
               },
             });
           }
 
-          await tx.trip.create({
-            data: {
-              planRouteId: planRoute.id,
-              vehicleId: route.vehicle_id,
-              status: 'scheduled',
-            },
-          });
-        }
-
-        return plan.id;
+          return plan.id;
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        { isolationLevel: "Serializable" as const }
       );
-    } catch (error) {
+    } catch (error: any) {
       if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
+        error?.constructor?.name === "PrismaClientKnownRequestError" &&
+        error.code === "P2002"
       ) {
-        throw new ConflictException('Bu tarih ve problem tipi için zaten bir plan var');
+        throw new ConflictException(
+          "Bu tarih ve problem tipi için zaten bir plan var"
+        );
       }
 
       if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2034'
+        error?.constructor?.name === "PrismaClientKnownRequestError" &&
+        error.code === "P2034"
       ) {
-        throw new ConflictException('İşlem çakışması oluştu; lütfen tekrar deneyin');
+        throw new ConflictException(
+          "İşlem çakışması oluştu; lütfen tekrar deneyin"
+        );
       }
       throw error;
     }
@@ -363,13 +393,13 @@ export class PlansService {
 
   async activate(id: string) {
     const plan = await this.findById(id);
-    if (plan.status !== 'draft') {
-      throw new BadRequestException('Only draft plans can be activated');
+    if (plan.status !== "draft") {
+      throw new BadRequestException("Only draft plans can be activated");
     }
 
     return this.prisma.plan.update({
       where: { id },
-      data: { status: 'active' },
+      data: { status: "active" },
     });
   }
 

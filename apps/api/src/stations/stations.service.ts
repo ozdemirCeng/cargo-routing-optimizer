@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateStationDto } from './dto/create-station.dto';
-import { UpdateStationDto } from './dto/update-station.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreateStationDto } from "./dto/create-station.dto";
+import { UpdateStationDto } from "./dto/update-station.dto";
 
 @Injectable()
 export class StationsService {
@@ -10,7 +10,7 @@ export class StationsService {
   async findAll(activeOnly = true) {
     return this.prisma.station.findMany({
       where: activeOnly ? { isActive: true } : {},
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
   }
 
@@ -19,7 +19,7 @@ export class StationsService {
       where: { id },
     });
     if (!station) {
-      throw new NotFoundException('Station not found');
+      throw new NotFoundException("Station not found");
     }
     return station;
   }
@@ -72,7 +72,7 @@ export class StationsService {
       include: {
         originCargos: {
           where: {
-            status: 'pending',
+            status: "pending",
             scheduledDate: { gte: dayStart, lt: dayEnd },
           },
         },
@@ -89,12 +89,12 @@ export class StationsService {
       cargoCount: station.originCargos.length,
       totalWeightKg: station.originCargos.reduce(
         (sum, cargo) => sum + Number(cargo.weightKg),
-        0,
+        0
       ),
       cargos: station.originCargos.map((c) => ({
         id: c.id,
-        weightKg: Number(c.weightKg),
-        userId: c.userId,
+        weight_kg: Number(c.weightKg),
+        user_id: c.userId,
       })),
     }));
   }
