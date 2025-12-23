@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { vehiclesApi } from '@/lib/api';
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { vehiclesApi } from "@/lib/api";
 
 interface VehicleForm {
   plateNumber: string;
@@ -25,34 +25,44 @@ export default function VehiclesPage() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [formData, setFormData] = useState<VehicleForm>({
-    plateNumber: '',
-    name: '',
-    capacityKg: '',
+    plateNumber: "",
+    name: "",
+    capacityKg: "",
     isActive: true,
   });
 
   const { data: vehicles, isLoading } = useQuery({
-    queryKey: ['vehicles'],
+    queryKey: ["vehicles"],
     queryFn: () => vehiclesApi.getAll().then((r) => r.data),
   });
 
   const createMutation = useMutation({
     mutationFn: vehiclesApi.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
       handleCloseDialog();
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { plateNumber: string; name: string; capacityKg: number; isActive: boolean } }) =>
-      vehiclesApi.update(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: {
+        plateNumber: string;
+        name: string;
+        capacityKg: number;
+        isActive: boolean;
+      };
+    }) => vehiclesApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
       handleCloseDialog();
     },
   });
@@ -60,15 +70,16 @@ export default function VehiclesPage() {
   const deleteMutation = useMutation({
     mutationFn: vehiclesApi.delete,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
     },
   });
 
   // Filter and paginate vehicles
   const filteredVehicles = useMemo(() => {
     if (!vehicles) return [];
-    return vehicles.filter((v: Vehicle) =>
-      v.plateNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false
+    return vehicles.filter(
+      (v: Vehicle) =>
+        v.plateNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false
     );
   }, [vehicles, searchTerm]);
 
@@ -101,7 +112,12 @@ export default function VehiclesPage() {
       });
     } else {
       setEditingVehicle(null);
-      setFormData({ plateNumber: '', name: '', capacityKg: '', isActive: true });
+      setFormData({
+        plateNumber: "",
+        name: "",
+        capacityKg: "",
+        isActive: true,
+      });
     }
     setDialogOpen(true);
   };
@@ -109,7 +125,7 @@ export default function VehiclesPage() {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingVehicle(null);
-    setFormData({ plateNumber: '', name: '', capacityKg: '', isActive: true });
+    setFormData({ plateNumber: "", name: "", capacityKg: "", isActive: true });
   };
 
   const handleSubmit = () => {
@@ -128,15 +144,17 @@ export default function VehiclesPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Bu aracı silmek istediğinizden emin misiniz?')) {
+    if (confirm("Bu aracı silmek istediğinizden emin misiniz?")) {
       deleteMutation.mutate(id);
     }
   };
 
   const getInitials = (plateNumber: string) => {
-    if (!plateNumber) return '??';
-    const parts = plateNumber.split(' ');
-    return parts.length >= 2 ? parts[0].charAt(0) + parts[1].charAt(0) : plateNumber.substring(0, 2);
+    if (!plateNumber) return "??";
+    const parts = plateNumber.split(" ");
+    return parts.length >= 2
+      ? parts[0].charAt(0) + parts[1].charAt(0)
+      : plateNumber.substring(0, 2);
   };
 
   if (isLoading) {
@@ -157,10 +175,14 @@ export default function VehiclesPage() {
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
             <span>Ana Sayfa</span>
-            <span className="material-symbols-rounded text-[12px]">chevron_right</span>
+            <span className="material-symbols-rounded text-[12px]">
+              chevron_right
+            </span>
             <span className="text-primary">Araç Filosu</span>
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Araç Yönetimi</h2>
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            Araç Yönetimi
+          </h2>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative group">
@@ -186,13 +208,19 @@ export default function VehiclesPage() {
         {/* Total Vehicles */}
         <div className="glass-card rounded-2xl p-5 relative overflow-hidden group">
           <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="material-symbols-rounded text-[80px] text-slate-200">local_shipping</span>
+            <span className="material-symbols-rounded text-[80px] text-slate-200">
+              local_shipping
+            </span>
           </div>
           <div className="flex items-center gap-4 mb-2">
             <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-              <span className="material-symbols-rounded text-blue-400">directions_car</span>
+              <span className="material-symbols-rounded text-blue-400">
+                directions_car
+              </span>
             </div>
-            <span className="text-sm font-medium text-slate-400 uppercase tracking-wide">Toplam Araç</span>
+            <span className="text-sm font-medium text-slate-400 uppercase tracking-wide">
+              Toplam Araç
+            </span>
           </div>
           <div className="flex items-baseline gap-2">
             <h3 className="text-3xl font-bold text-white">{stats.total}</h3>
@@ -200,7 +228,7 @@ export default function VehiclesPage() {
           <div className="h-1 w-full bg-slate-700/50 rounded-full mt-4 overflow-hidden">
             <div
               className="h-full bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
             ></div>
           </div>
         </div>
@@ -208,13 +236,19 @@ export default function VehiclesPage() {
         {/* Active Vehicles */}
         <div className="glass-card rounded-2xl p-5 relative overflow-hidden group">
           <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="material-symbols-rounded text-[80px] text-slate-200">near_me</span>
+            <span className="material-symbols-rounded text-[80px] text-slate-200">
+              near_me
+            </span>
           </div>
           <div className="flex items-center gap-4 mb-2">
             <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-              <span className="material-symbols-rounded text-emerald-400">moving</span>
+              <span className="material-symbols-rounded text-emerald-400">
+                moving
+              </span>
             </div>
-            <span className="text-sm font-medium text-slate-400 uppercase tracking-wide">Aktif Araçlar</span>
+            <span className="text-sm font-medium text-slate-400 uppercase tracking-wide">
+              Aktif Araçlar
+            </span>
           </div>
           <div className="flex items-baseline gap-2">
             <h3 className="text-3xl font-bold text-white">{stats.active}</h3>
@@ -223,7 +257,12 @@ export default function VehiclesPage() {
           <div className="h-1 w-full bg-slate-700/50 rounded-full mt-4 overflow-hidden">
             <div
               className="h-full bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"
-              style={{ width: stats.total > 0 ? `${(stats.active / stats.total) * 100}%` : '0%' }}
+              style={{
+                width:
+                  stats.total > 0
+                    ? `${(stats.active / stats.total) * 100}%`
+                    : "0%",
+              }}
             ></div>
           </div>
         </div>
@@ -231,13 +270,19 @@ export default function VehiclesPage() {
         {/* Passive Vehicles */}
         <div className="glass-card rounded-2xl p-5 relative overflow-hidden group">
           <div className="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="material-symbols-rounded text-[80px] text-slate-200">garage_home</span>
+            <span className="material-symbols-rounded text-[80px] text-slate-200">
+              garage_home
+            </span>
           </div>
           <div className="flex items-center gap-4 mb-2">
             <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
-              <span className="material-symbols-rounded text-orange-400">power_settings_new</span>
+              <span className="material-symbols-rounded text-orange-400">
+                power_settings_new
+              </span>
             </div>
-            <span className="text-sm font-medium text-slate-400 uppercase tracking-wide">Pasif Araçlar</span>
+            <span className="text-sm font-medium text-slate-400 uppercase tracking-wide">
+              Pasif Araçlar
+            </span>
           </div>
           <div className="flex items-baseline gap-2">
             <h3 className="text-3xl font-bold text-white">{stats.passive}</h3>
@@ -245,7 +290,12 @@ export default function VehiclesPage() {
           <div className="h-1 w-full bg-slate-700/50 rounded-full mt-4 overflow-hidden">
             <div
               className="h-full bg-orange-500 rounded-full shadow-[0_0_10px_rgba(249,115,22,0.5)]"
-              style={{ width: stats.total > 0 ? `${(stats.passive / stats.total) * 100}%` : '0%' }}
+              style={{
+                width:
+                  stats.total > 0
+                    ? `${(stats.passive / stats.total) * 100}%`
+                    : "0%",
+              }}
             ></div>
           </div>
         </div>
@@ -280,11 +330,21 @@ export default function VehiclesPage() {
           <table className="w-full text-left border-collapse">
             <thead className="glass-table-header sticky top-0 z-10 backdrop-blur-md">
               <tr>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Plaka</th>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Kapasite</th>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Oluşturulma</th>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">Durum</th>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">İşlemler</th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Plaka
+                </th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Kapasite
+                </th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Oluşturulma
+                </th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Durum
+                </th>
+                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">
+                  İşlemler
+                </th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-white/5">
@@ -292,13 +352,17 @@ export default function VehiclesPage() {
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-3">
-                      <span className="material-symbols-rounded text-[48px] text-slate-600">directions_car</span>
+                      <span className="material-symbols-rounded text-[48px] text-slate-600">
+                        directions_car
+                      </span>
                       <span>Henüz araç bulunmuyor</span>
                       <button
                         onClick={() => handleOpenDialog()}
                         className="mt-2 px-4 py-2 rounded-lg btn-primary-glow text-white text-sm font-medium flex items-center gap-2"
                       >
-                        <span className="material-symbols-rounded text-[18px]">add</span>
+                        <span className="material-symbols-rounded text-[18px]">
+                          add
+                        </span>
                         İlk aracı ekle
                       </button>
                     </div>
@@ -313,17 +377,25 @@ export default function VehiclesPage() {
                           {getInitials(vehicle.plateNumber)}
                         </div>
                         <div>
-                          <div className="font-mono font-bold text-white text-base">{vehicle.plateNumber}</div>
-                          <div className="text-xs text-slate-500">{vehicle.name}</div>
+                          <div className="font-mono font-bold text-white text-base">
+                            {vehicle.plateNumber}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {vehicle.name}
+                          </div>
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <span className="text-slate-300">{Number(vehicle.capacityKg).toLocaleString('tr-TR')} kg</span>
+                      <span className="text-slate-300">
+                        {Number(vehicle.capacityKg).toLocaleString("tr-TR")} kg
+                      </span>
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-slate-400">
-                        {new Date(vehicle.createdAt).toLocaleDateString('tr-TR')}
+                        {new Date(vehicle.createdAt).toLocaleDateString(
+                          "tr-TR"
+                        )}
                       </span>
                     </td>
                     <td className="py-4 px-6">
@@ -345,13 +417,17 @@ export default function VehiclesPage() {
                           onClick={() => handleOpenDialog(vehicle)}
                           className="p-1.5 rounded-lg hover:bg-blue-500/20 hover:text-blue-400 text-slate-400 transition-colors"
                         >
-                          <span className="material-symbols-rounded text-[18px]">edit</span>
+                          <span className="material-symbols-rounded text-[18px]">
+                            edit
+                          </span>
                         </button>
                         <button
                           onClick={() => handleDelete(vehicle.id)}
                           className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400 text-slate-400 transition-colors"
                         >
-                          <span className="material-symbols-rounded text-[18px]">delete</span>
+                          <span className="material-symbols-rounded text-[18px]">
+                            delete
+                          </span>
                         </button>
                       </div>
                     </td>
@@ -366,11 +442,15 @@ export default function VehiclesPage() {
         {filteredVehicles.length > 0 && (
           <div className="p-4 border-t border-white/5 flex items-center justify-between">
             <div className="text-xs text-slate-400">
-              Toplam <span className="text-white font-semibold">{filteredVehicles.length}</span> araçtan{' '}
+              Toplam{" "}
+              <span className="text-white font-semibold">
+                {filteredVehicles.length}
+              </span>{" "}
+              araçtan{" "}
               <span className="text-white font-semibold">
                 {(currentPage - 1) * itemsPerPage + 1}-
                 {Math.min(currentPage * itemsPerPage, filteredVehicles.length)}
-              </span>{' '}
+              </span>{" "}
               arası gösteriliyor
             </div>
             <div className="flex items-center gap-2">
@@ -379,7 +459,9 @@ export default function VehiclesPage() {
                 disabled={currentPage === 1}
                 className="h-8 w-8 rounded-lg border border-white/10 flex items-center justify-center text-slate-400 hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-rounded text-[16px]">chevron_left</span>
+                <span className="material-symbols-rounded text-[16px]">
+                  chevron_left
+                </span>
               </button>
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                 let pageNum: number;
@@ -398,8 +480,8 @@ export default function VehiclesPage() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs transition-colors ${
                       currentPage === pageNum
-                        ? 'bg-primary text-white font-bold shadow-lg shadow-blue-500/20'
-                        : 'border border-white/10 text-slate-400 hover:bg-white/5 hover:text-white'
+                        ? "bg-primary text-white font-bold shadow-lg shadow-blue-500/20"
+                        : "border border-white/10 text-slate-400 hover:bg-white/5 hover:text-white"
                     }`}
                   >
                     {pageNum}
@@ -407,11 +489,15 @@ export default function VehiclesPage() {
                 );
               })}
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={currentPage === totalPages}
                 className="h-8 w-8 rounded-lg border border-white/10 flex items-center justify-center text-slate-400 hover:bg-white/5 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-rounded text-[16px]">chevron_right</span>
+                <span className="material-symbols-rounded text-[16px]">
+                  chevron_right
+                </span>
               </button>
             </div>
           </div>
@@ -429,17 +515,21 @@ export default function VehiclesPage() {
             <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-slate-900/40">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
-                  <span className="material-symbols-rounded text-[20px]">directions_car</span>
+                  <span className="material-symbols-rounded text-[20px]">
+                    directions_car
+                  </span>
                 </div>
                 <h3 className="text-lg font-bold text-white">
-                  {editingVehicle ? 'Araç Düzenle' : 'Yeni Araç Ekle'}
+                  {editingVehicle ? "Araç Düzenle" : "Yeni Araç Ekle"}
                 </h3>
               </div>
               <button
                 onClick={handleCloseDialog}
                 className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
               >
-                <span className="material-symbols-rounded text-[20px]">close</span>
+                <span className="material-symbols-rounded text-[20px]">
+                  close
+                </span>
               </button>
             </div>
 
@@ -452,7 +542,7 @@ export default function VehiclesPage() {
                     <span>
                       {(createMutation.error as Error)?.message ||
                         (updateMutation.error as Error)?.message ||
-                        'İşlem sırasında hata oluştu'}
+                        "İşlem sırasında hata oluştu"}
                     </span>
                   </div>
                 </div>
@@ -468,7 +558,12 @@ export default function VehiclesPage() {
                     className="w-full px-4 py-2.5 rounded-lg text-sm glass-input font-mono placeholder:text-slate-600 focus:text-white uppercase"
                     placeholder="Örn: 41 ABC 123"
                     value={formData.plateNumber}
-                    onChange={(e) => setFormData({ ...formData, plateNumber: e.target.value.toUpperCase() })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        plateNumber: e.target.value.toUpperCase(),
+                      })
+                    }
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -480,11 +575,15 @@ export default function VehiclesPage() {
                     className="w-full px-4 py-2.5 rounded-lg text-sm glass-input placeholder:text-slate-600 focus:text-white"
                     placeholder="1000"
                     value={formData.capacityKg}
-                    onChange={(e) => setFormData({ ...formData, capacityKg: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, capacityKg: e.target.value })
+                    }
                     min={100}
                     step={50}
                   />
-                  <p className="text-xs text-slate-500 mt-1">Önerilen: 500, 750, 1000 kg</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Önerilen: 500, 750, 1000 kg
+                  </p>
                 </div>
               </div>
 
@@ -497,7 +596,9 @@ export default function VehiclesPage() {
                   className="w-full px-4 py-2.5 rounded-lg text-sm glass-input placeholder:text-slate-600 focus:text-white"
                   placeholder="Örn: Ford Transit 1000kg"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                 />
               </div>
 
@@ -509,29 +610,37 @@ export default function VehiclesPage() {
                   <div className="flex gap-3">
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, isActive: true })}
+                      onClick={() =>
+                        setFormData({ ...formData, isActive: true })
+                      }
                       className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                         formData.isActive
-                          ? 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-400'
-                          : 'glass-input text-slate-400 hover:text-white'
+                          ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"
+                          : "glass-input text-slate-400 hover:text-white"
                       }`}
                     >
                       <span className="flex items-center justify-center gap-2">
-                        <span className="material-symbols-rounded text-[18px]">check_circle</span>
+                        <span className="material-symbols-rounded text-[18px]">
+                          check_circle
+                        </span>
                         Aktif
                       </span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, isActive: false })}
+                      onClick={() =>
+                        setFormData({ ...formData, isActive: false })
+                      }
                       className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                         !formData.isActive
-                          ? 'bg-orange-500/20 border border-orange-500/30 text-orange-400'
-                          : 'glass-input text-slate-400 hover:text-white'
+                          ? "bg-orange-500/20 border border-orange-500/30 text-orange-400"
+                          : "glass-input text-slate-400 hover:text-white"
                       }`}
                     >
                       <span className="flex items-center justify-center gap-2">
-                        <span className="material-symbols-rounded text-[18px]">cancel</span>
+                        <span className="material-symbols-rounded text-[18px]">
+                          cancel
+                        </span>
                         Pasif
                       </span>
                     </button>
@@ -549,7 +658,12 @@ export default function VehiclesPage() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={createMutation.isPending || updateMutation.isPending || !formData.plateNumber || !formData.capacityKg}
+                disabled={
+                  createMutation.isPending ||
+                  updateMutation.isPending ||
+                  !formData.plateNumber ||
+                  !formData.capacityKg
+                }
                 className="px-6 py-2.5 rounded-lg text-white text-sm font-bold flex items-center gap-2 btn-primary-glow disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createMutation.isPending || updateMutation.isPending ? (
@@ -559,8 +673,10 @@ export default function VehiclesPage() {
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-rounded text-[18px]">check</span>
-                    <span>{editingVehicle ? 'Güncelle' : 'Oluştur'}</span>
+                    <span className="material-symbols-rounded text-[18px]">
+                      check
+                    </span>
+                    <span>{editingVehicle ? "Güncelle" : "Oluştur"}</span>
                   </>
                 )}
               </button>
@@ -592,12 +708,18 @@ export default function VehiclesPage() {
         }
         .glass-input:focus {
           border-color: #135bec;
-          box-shadow: 0 0 0 1px #135bec, 0 0 0 4px rgba(19, 91, 236, 0.15);
+          box-shadow:
+            0 0 0 1px #135bec,
+            0 0 0 4px rgba(19, 91, 236, 0.15);
           background-color: rgba(15, 23, 42, 0.95);
           outline: none;
         }
         .glass-card {
-          background: linear-gradient(145deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%);
+          background: linear-gradient(
+            145deg,
+            rgba(30, 41, 59, 0.4) 0%,
+            rgba(15, 23, 42, 0.4) 100%
+          );
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
           border: 1px solid rgba(255, 255, 255, 0.05);
@@ -605,7 +727,11 @@ export default function VehiclesPage() {
         }
         .glass-card:hover {
           border-color: rgba(19, 91, 236, 0.3);
-          background: linear-gradient(145deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%);
+          background: linear-gradient(
+            145deg,
+            rgba(30, 41, 59, 0.5) 0%,
+            rgba(15, 23, 42, 0.5) 100%
+          );
           transform: translateY(-2px);
           box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
         }

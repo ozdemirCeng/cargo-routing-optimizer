@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { cargosApi, stationsApi, usersApi } from '@/lib/api';
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { cargosApi, stationsApi, usersApi } from "@/lib/api";
 
 interface Cargo {
   id: string;
@@ -49,50 +49,55 @@ export default function CargosPage() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCargo, setEditingCargo] = useState<Cargo | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [filters, setFilters] = useState({
-    status: '',
-    stationId: '',
-    date: '',
+    status: "",
+    stationId: "",
+    date: "",
   });
   const [formData, setFormData] = useState<CargoForm>({
-    originStationId: '',
-    userId: '',
-    weightKg: '',
-    description: '',
-    scheduledDate: '',
+    originStationId: "",
+    userId: "",
+    weightKg: "",
+    description: "",
+    scheduledDate: "",
   });
 
   const { data: cargos, isLoading } = useQuery({
-    queryKey: ['cargos', filters],
+    queryKey: ["cargos", filters],
     queryFn: () => cargosApi.getAll(filters).then((r) => r.data),
   });
 
   const { data: stations } = useQuery({
-    queryKey: ['stations'],
+    queryKey: ["stations"],
     queryFn: () => stationsApi.getAll().then((r) => r.data),
   });
 
   const { data: users } = useQuery({
-    queryKey: ['users'],
+    queryKey: ["users"],
     queryFn: () => usersApi.getAll().then((r) => r.data),
   });
 
   const createMutation = useMutation({
     mutationFn: cargosApi.create,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cargos'] });
+      queryClient.invalidateQueries({ queryKey: ["cargos"] });
       handleCloseDialog();
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CargoForm & { weightKg: number }> }) =>
-      cargosApi.update(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<CargoForm & { weightKg: number }>;
+    }) => cargosApi.update(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cargos'] });
+      queryClient.invalidateQueries({ queryKey: ["cargos"] });
       handleCloseDialog();
     },
   });
@@ -100,7 +105,7 @@ export default function CargosPage() {
   const deleteMutation = useMutation({
     mutationFn: cargosApi.delete,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cargos'] });
+      queryClient.invalidateQueries({ queryKey: ["cargos"] });
     },
   });
 
@@ -112,10 +117,11 @@ export default function CargosPage() {
   // Filter and paginate cargos
   const filteredCargos = useMemo(() => {
     if (!cargos) return [];
-    return cargos.filter((c: Cargo) =>
-      c.trackingCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.user?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    return cargos.filter(
+      (c: Cargo) =>
+        c.trackingCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.user?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [cargos, searchTerm]);
 
@@ -129,9 +135,15 @@ export default function CargosPage() {
   // Statistics
   const stats = useMemo(() => {
     if (!cargos) return { total: 0, pending: 0, inTransit: 0, delivered: 0 };
-    const pending = cargos.filter((c: Cargo) => c.status === 'pending' || c.status === 'assigned').length;
-    const inTransit = cargos.filter((c: Cargo) => c.status === 'in_transit').length;
-    const delivered = cargos.filter((c: Cargo) => c.status === 'delivered').length;
+    const pending = cargos.filter(
+      (c: Cargo) => c.status === "pending" || c.status === "assigned"
+    ).length;
+    const inTransit = cargos.filter(
+      (c: Cargo) => c.status === "in_transit"
+    ).length;
+    const delivered = cargos.filter(
+      (c: Cargo) => c.status === "delivered"
+    ).length;
     return {
       total: cargos.length,
       pending,
@@ -145,21 +157,21 @@ export default function CargosPage() {
       setEditingCargo(cargo);
       setFormData({
         originStationId: cargo.originStationId,
-        userId: cargo.userId || '',
+        userId: cargo.userId || "",
         weightKg: cargo.weightKg.toString(),
-        description: cargo.description || '',
-        scheduledDate: cargo.scheduledDate?.split('T')[0] || '',
+        description: cargo.description || "",
+        scheduledDate: cargo.scheduledDate?.split("T")[0] || "",
       });
     } else {
       setEditingCargo(null);
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       setFormData({
-        originStationId: '',
-        userId: '',
-        weightKg: '',
-        description: '',
-        scheduledDate: tomorrow.toISOString().split('T')[0],
+        originStationId: "",
+        userId: "",
+        weightKg: "",
+        description: "",
+        scheduledDate: tomorrow.toISOString().split("T")[0],
       });
     }
     setDialogOpen(true);
@@ -169,11 +181,11 @@ export default function CargosPage() {
     setDialogOpen(false);
     setEditingCargo(null);
     setFormData({
-      originStationId: '',
-      userId: '',
-      weightKg: '',
-      description: '',
-      scheduledDate: '',
+      originStationId: "",
+      userId: "",
+      weightKg: "",
+      description: "",
+      scheduledDate: "",
     });
   };
 
@@ -197,43 +209,43 @@ export default function CargosPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Bu kargoyu silmek istediğinizden emin misiniz?')) {
+    if (confirm("Bu kargoyu silmek istediğinizden emin misiniz?")) {
       deleteMutation.mutate(id);
     }
   };
 
   const statusLabels: Record<string, string> = {
-    pending: 'Bekliyor',
-    assigned: 'Atandı',
-    in_transit: 'Yolda',
-    delivered: 'Teslim Edildi',
-    cancelled: 'İptal',
+    pending: "Bekliyor",
+    assigned: "Atandı",
+    in_transit: "Yolda",
+    delivered: "Teslim Edildi",
+    cancelled: "İptal",
   };
 
   const statusStyles: Record<string, string> = {
-    pending: 'badge-blue',
-    assigned: 'badge-blue',
-    in_transit: 'badge-orange',
-    delivered: 'badge-green',
-    cancelled: 'badge-red',
+    pending: "badge-blue",
+    assigned: "badge-blue",
+    in_transit: "badge-orange",
+    delivered: "badge-green",
+    cancelled: "badge-red",
   };
 
   const getInitials = (name: string) => {
-    if (!name) return '??';
-    const parts = name.split(' ');
-    return parts.length >= 2 
+    if (!name) return "??";
+    const parts = name.split(" ");
+    return parts.length >= 2
       ? parts[0].charAt(0).toUpperCase() + parts[1].charAt(0).toUpperCase()
       : name.substring(0, 2).toUpperCase();
   };
 
   const getAvatarColor = (name: string) => {
     const colors = [
-      'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      'bg-teal-500/20 text-teal-400 border-teal-500/30',
-      'bg-pink-500/20 text-pink-400 border-pink-500/30',
-      'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      "bg-purple-500/20 text-purple-400 border-purple-500/30",
+      "bg-teal-500/20 text-teal-400 border-teal-500/30",
+      "bg-pink-500/20 text-pink-400 border-pink-500/30",
+      "bg-orange-500/20 text-orange-400 border-orange-500/30",
+      "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
     ];
     if (!name) return colors[0];
     const index = name.charCodeAt(0) % colors.length;
@@ -269,9 +281,13 @@ export default function CargosPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4 px-2">
         <div className="flex items-center gap-2 px-4 py-2 rounded-full glass-panel">
-          <span className="text-gray-400 material-symbols-rounded text-[20px]">home</span>
+          <span className="text-gray-400 material-symbols-rounded text-[20px]">
+            home
+          </span>
           <span className="text-gray-600 mx-1">/</span>
-          <span className="text-gray-300 text-sm font-medium">Kargo Siparişleri</span>
+          <span className="text-gray-300 text-sm font-medium">
+            Kargo Siparişleri
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <button className="relative flex items-center justify-center h-10 w-10 rounded-full glass-panel text-gray-400 hover:text-white hover:bg-white/10 transition-all">
@@ -289,8 +305,12 @@ export default function CargosPage() {
         {/* Panel Header */}
         <div className="p-6 pb-2 flex items-center justify-between border-b border-white/5 bg-gradient-to-r from-blue-900/20 to-transparent">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight glow-text">Kargo Yönetimi</h2>
-            <p className="text-sm text-gray-400 mt-1">Sipariş takibi ve durum yönetimi</p>
+            <h2 className="text-2xl font-bold text-white tracking-tight glow-text">
+              Kargo Yönetimi
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              Sipariş takibi ve durum yönetimi
+            </p>
           </div>
           <button
             onClick={() => handleOpenDialog()}
@@ -304,7 +324,9 @@ export default function CargosPage() {
         {/* Filters */}
         <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-4">
           <div className="md:col-span-3 relative">
-            <label className="block text-xs font-medium text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">Durum</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">
+              Durum
+            </label>
             <div className="relative">
               <select
                 className="w-full pl-4 pr-10 py-2.5 rounded-lg text-sm glass-input appearance-none cursor-pointer focus:ring-1 focus:ring-primary"
@@ -314,17 +336,37 @@ export default function CargosPage() {
                   setCurrentPage(1);
                 }}
               >
-                <option value="" className="bg-slate-800 text-gray-300">Tüm Durumlar</option>
-                <option value="pending" className="bg-slate-800 text-gray-300">Bekliyor</option>
-                <option value="assigned" className="bg-slate-800 text-gray-300">Atandı</option>
-                <option value="in_transit" className="bg-slate-800 text-gray-300">Yolda</option>
-                <option value="delivered" className="bg-slate-800 text-gray-300">Teslim Edildi</option>
+                <option value="" className="bg-slate-800 text-gray-300">
+                  Tüm Durumlar
+                </option>
+                <option value="pending" className="bg-slate-800 text-gray-300">
+                  Bekliyor
+                </option>
+                <option value="assigned" className="bg-slate-800 text-gray-300">
+                  Atandı
+                </option>
+                <option
+                  value="in_transit"
+                  className="bg-slate-800 text-gray-300"
+                >
+                  Yolda
+                </option>
+                <option
+                  value="delivered"
+                  className="bg-slate-800 text-gray-300"
+                >
+                  Teslim Edildi
+                </option>
               </select>
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 material-symbols-rounded text-[20px]">expand_more</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 material-symbols-rounded text-[20px]">
+                expand_more
+              </span>
             </div>
           </div>
           <div className="md:col-span-3 relative">
-            <label className="block text-xs font-medium text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">İstasyon</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">
+              İstasyon
+            </label>
             <div className="relative">
               <select
                 className="w-full pl-4 pr-10 py-2.5 rounded-lg text-sm glass-input appearance-none cursor-pointer focus:ring-1 focus:ring-primary"
@@ -334,18 +376,28 @@ export default function CargosPage() {
                   setCurrentPage(1);
                 }}
               >
-                <option value="" className="bg-slate-800 text-gray-300">Tüm İstasyonlar</option>
+                <option value="" className="bg-slate-800 text-gray-300">
+                  Tüm İstasyonlar
+                </option>
                 {nonHubStations.map((s) => (
-                  <option key={s.id} value={s.id} className="bg-slate-800 text-gray-300">
+                  <option
+                    key={s.id}
+                    value={s.id}
+                    className="bg-slate-800 text-gray-300"
+                  >
                     {s.name}
                   </option>
                 ))}
               </select>
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 material-symbols-rounded text-[20px]">expand_more</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 material-symbols-rounded text-[20px]">
+                expand_more
+              </span>
             </div>
           </div>
           <div className="md:col-span-3 relative">
-            <label className="block text-xs font-medium text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">Tarih</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">
+              Tarih
+            </label>
             <div className="relative">
               <input
                 type="date"
@@ -359,7 +411,9 @@ export default function CargosPage() {
             </div>
           </div>
           <div className="md:col-span-3 relative">
-            <label className="block text-xs font-medium text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">Ara</label>
+            <label className="block text-xs font-medium text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">
+              Ara
+            </label>
             <div className="relative">
               <input
                 type="text"
@@ -371,7 +425,9 @@ export default function CargosPage() {
                   setCurrentPage(1);
                 }}
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-symbols-rounded text-[20px]">search</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-symbols-rounded text-[20px]">
+                search
+              </span>
             </div>
           </div>
         </div>
@@ -387,7 +443,9 @@ export default function CargosPage() {
                 <th className="px-4 py-3 font-semibold text-center">Ağırlık</th>
                 <th className="px-4 py-3 font-semibold">Tarih</th>
                 <th className="px-4 py-3 font-semibold">Durum</th>
-                <th className="px-4 py-3 font-semibold text-center">Oluşturulma</th>
+                <th className="px-4 py-3 font-semibold text-center">
+                  Oluşturulma
+                </th>
                 <th className="px-4 py-3 font-semibold text-right">İşlemler</th>
               </tr>
             </thead>
@@ -396,40 +454,64 @@ export default function CargosPage() {
                 <tr>
                   <td colSpan={8} className="text-center py-12 text-slate-400">
                     <div className="flex flex-col items-center gap-2">
-                      <span className="material-symbols-rounded text-[48px] opacity-50">inventory_2</span>
+                      <span className="material-symbols-rounded text-[48px] opacity-50">
+                        inventory_2
+                      </span>
                       <span>Kargo bulunamadı</span>
                     </div>
                   </td>
                 </tr>
               ) : (
                 paginatedCargos.map((cargo: Cargo) => (
-                  <tr key={cargo.id} className="bg-slate-800/40 glass-table-row group">
+                  <tr
+                    key={cargo.id}
+                    className="bg-slate-800/40 glass-table-row group"
+                  >
                     <td className="px-4 py-4 rounded-l-lg font-mono">
-                      <a className="link-track flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors" href="#">
-                        <span className="material-symbols-rounded text-[16px]">qr_code_2</span>
+                      <a
+                        className="link-track flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
+                        href="#"
+                      >
+                        <span className="material-symbols-rounded text-[16px]">
+                          qr_code_2
+                        </span>
                         {cargo.trackingCode}
                       </a>
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs border ${getAvatarColor(cargo.user?.fullName || '')}`}>
-                          {getInitials(cargo.user?.fullName || 'Misafir')}
+                        <div
+                          className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-xs border ${getAvatarColor(cargo.user?.fullName || "")}`}
+                        >
+                          {getInitials(cargo.user?.fullName || "Misafir")}
                         </div>
                         <div>
-                          <div className="font-medium text-white">{cargo.user?.fullName || 'Misafir'}</div>
-                          <div className="text-xs text-gray-500">{cargo.user?.email || '-'}</div>
+                          <div className="font-medium text-white">
+                            {cargo.user?.fullName || "Misafir"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {cargo.user?.email || "-"}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-gray-300">{cargo.originStation?.name || '-'}</td>
-                    <td className="px-4 py-4 text-center text-gray-400 font-mono">{Number(cargo.weightKg).toFixed(1)} kg</td>
+                    <td className="px-4 py-4 text-gray-300">
+                      {cargo.originStation?.name || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-center text-gray-400 font-mono">
+                      {Number(cargo.weightKg).toFixed(1)} kg
+                    </td>
                     <td className="px-4 py-4 text-gray-400">
                       {cargo.scheduledDate
-                        ? new Date(cargo.scheduledDate).toLocaleDateString('tr-TR')
-                        : '-'}
+                        ? new Date(cargo.scheduledDate).toLocaleDateString(
+                            "tr-TR"
+                          )
+                        : "-"}
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`badge-pill ${statusStyles[cargo.status] || 'badge-blue'}`}>
+                      <span
+                        className={`badge-pill ${statusStyles[cargo.status] || "badge-blue"}`}
+                      >
                         {statusLabels[cargo.status] || cargo.status}
                       </span>
                     </td>
@@ -442,23 +524,29 @@ export default function CargosPage() {
                           className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
                           title="Görüntüle"
                         >
-                          <span className="material-symbols-rounded text-[18px]">visibility</span>
+                          <span className="material-symbols-rounded text-[18px]">
+                            visibility
+                          </span>
                         </button>
-                        {cargo.status === 'pending' && (
+                        {cargo.status === "pending" && (
                           <>
                             <button
                               onClick={() => handleOpenDialog(cargo)}
                               className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-blue-400 transition-colors"
                               title="Düzenle"
                             >
-                              <span className="material-symbols-rounded text-[18px]">edit</span>
+                              <span className="material-symbols-rounded text-[18px]">
+                                edit
+                              </span>
                             </button>
                             <button
                               onClick={() => handleDelete(cargo.id)}
                               className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-red-400 transition-colors"
                               title="Sil"
                             >
-                              <span className="material-symbols-rounded text-[18px]">delete</span>
+                              <span className="material-symbols-rounded text-[18px]">
+                                delete
+                              </span>
                             </button>
                           </>
                         )}
@@ -466,7 +554,9 @@ export default function CargosPage() {
                           className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
                           title="Daha fazla"
                         >
-                          <span className="material-symbols-rounded text-[18px]">more_vert</span>
+                          <span className="material-symbols-rounded text-[18px]">
+                            more_vert
+                          </span>
                         </button>
                       </div>
                     </td>
@@ -481,14 +571,19 @@ export default function CargosPage() {
         <div className="p-4 border-t border-white/5 flex items-center justify-between bg-black/10">
           <div className="text-xs text-gray-400">
             <span className="font-semibold text-white">
-              {filteredCargos.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}
-            </span>{' '}
-            -{' '}
+              {filteredCargos.length > 0
+                ? (currentPage - 1) * rowsPerPage + 1
+                : 0}
+            </span>{" "}
+            -{" "}
             <span className="font-semibold text-white">
               {Math.min(currentPage * rowsPerPage, filteredCargos.length)}
-            </span>{' '}
-            /{' '}
-            <span className="font-semibold text-white">{filteredCargos.length}</span> kayıt gösteriliyor
+            </span>{" "}
+            /{" "}
+            <span className="font-semibold text-white">
+              {filteredCargos.length}
+            </span>{" "}
+            kayıt gösteriliyor
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 mr-2">Rows per page:</span>
@@ -510,7 +605,9 @@ export default function CargosPage() {
                 disabled={currentPage === 1}
                 className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-gray-400 disabled:opacity-50 transition-colors"
               >
-                <span className="material-symbols-rounded text-[18px]">chevron_left</span>
+                <span className="material-symbols-rounded text-[18px]">
+                  chevron_left
+                </span>
               </button>
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                 let pageNum;
@@ -529,8 +626,8 @@ export default function CargosPage() {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`h-8 w-8 flex items-center justify-center rounded-lg text-xs transition-colors ${
                       currentPage === pageNum
-                        ? 'bg-primary text-white shadow-neon-blue font-medium'
-                        : 'hover:bg-white/10 text-gray-400'
+                        ? "bg-primary text-white shadow-neon-blue font-medium"
+                        : "hover:bg-white/10 text-gray-400"
                     }`}
                   >
                     {pageNum}
@@ -549,11 +646,15 @@ export default function CargosPage() {
                 </>
               )}
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={currentPage === totalPages || totalPages === 0}
                 className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-gray-400 disabled:opacity-50 transition-colors"
               >
-                <span className="material-symbols-rounded text-[18px]">chevron_right</span>
+                <span className="material-symbols-rounded text-[18px]">
+                  chevron_right
+                </span>
               </button>
             </div>
           </div>
@@ -576,15 +677,17 @@ export default function CargosPage() {
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
                   <span className="material-symbols-rounded text-primary">
-                    {editingCargo ? 'edit' : 'add_box'}
+                    {editingCargo ? "edit" : "add_box"}
                   </span>
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white">
-                    {editingCargo ? 'Kargo Düzenle' : 'Yeni Kargo'}
+                    {editingCargo ? "Kargo Düzenle" : "Yeni Kargo"}
                   </h3>
                   <p className="text-xs text-slate-400">
-                    {editingCargo ? 'Kargo bilgilerini güncelleyin' : 'Yeni kargo kaydı oluşturun'}
+                    {editingCargo
+                      ? "Kargo bilgilerini güncelleyin"
+                      : "Yeni kargo kaydı oluşturun"}
                   </p>
                 </div>
               </div>
@@ -605,7 +708,7 @@ export default function CargosPage() {
                   <span className="text-sm">
                     {(createMutation.error as any)?.response?.data?.message ||
                       (updateMutation.error as any)?.response?.data?.message ||
-                      'İşlem sırasında hata oluştu'}
+                      "İşlem sırasında hata oluştu"}
                   </span>
                 </div>
               )}
@@ -619,10 +722,14 @@ export default function CargosPage() {
                   <select
                     className="w-full pl-4 pr-10 py-3 rounded-xl glass-input appearance-none cursor-pointer"
                     value={formData.userId}
-                    onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, userId: e.target.value })
+                    }
                   >
-                    <option value="" className="bg-slate-800">Misafir</option>
-                    {(users as User[] || []).map((u) => (
+                    <option value="" className="bg-slate-800">
+                      Misafir
+                    </option>
+                    {((users as User[]) || []).map((u) => (
                       <option key={u.id} value={u.id} className="bg-slate-800">
                         {u.fullName} ({u.email})
                       </option>
@@ -643,10 +750,17 @@ export default function CargosPage() {
                   <select
                     className="w-full pl-4 pr-10 py-3 rounded-xl glass-input appearance-none cursor-pointer"
                     value={formData.originStationId}
-                    onChange={(e) => setFormData({ ...formData, originStationId: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        originStationId: e.target.value,
+                      })
+                    }
                     required
                   >
-                    <option value="" className="bg-slate-800">Seçiniz...</option>
+                    <option value="" className="bg-slate-800">
+                      Seçiniz...
+                    </option>
                     {nonHubStations.map((s) => (
                       <option key={s.id} value={s.id} className="bg-slate-800">
                         {s.name}
@@ -670,7 +784,9 @@ export default function CargosPage() {
                     className="w-full pl-10 pr-4 py-3 rounded-xl glass-input"
                     placeholder="0.0"
                     value={formData.weightKg}
-                    onChange={(e) => setFormData({ ...formData, weightKg: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, weightKg: e.target.value })
+                    }
                     min="0.1"
                     step="0.1"
                     required
@@ -691,7 +807,12 @@ export default function CargosPage() {
                     type="date"
                     className="w-full pl-10 pr-4 py-3 rounded-xl glass-input [&::-webkit-calendar-picker-indicator]:invert-[0.6]"
                     value={formData.scheduledDate}
-                    onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        scheduledDate: e.target.value,
+                      })
+                    }
                   />
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-rounded">
                     calendar_today
@@ -709,7 +830,9 @@ export default function CargosPage() {
                   placeholder="Kargo açıklaması..."
                   rows={3}
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -724,7 +847,12 @@ export default function CargosPage() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={createMutation.isPending || updateMutation.isPending || !formData.originStationId || !formData.weightKg}
+                disabled={
+                  createMutation.isPending ||
+                  updateMutation.isPending ||
+                  !formData.originStationId ||
+                  !formData.weightKg
+                }
                 className="btn-primary-glow px-6 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {createMutation.isPending || updateMutation.isPending ? (
@@ -734,12 +862,16 @@ export default function CargosPage() {
                   </>
                 ) : editingCargo ? (
                   <>
-                    <span className="material-symbols-rounded text-[18px]">check</span>
+                    <span className="material-symbols-rounded text-[18px]">
+                      check
+                    </span>
                     <span>Güncelle</span>
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-rounded text-[18px]">add</span>
+                    <span className="material-symbols-rounded text-[18px]">
+                      add
+                    </span>
                     <span>Oluştur</span>
                   </>
                 )}

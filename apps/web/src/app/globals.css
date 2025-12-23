@@ -45,7 +45,11 @@
 }
 
 .glass-card {
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.4) 100%);
+  background: linear-gradient(
+    145deg,
+    rgba(30, 41, 59, 0.4) 0%,
+    rgba(15, 23, 42, 0.4) 100%
+  );
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -54,7 +58,11 @@
 
 .glass-card:hover {
   border-color: rgba(19, 91, 236, 0.3);
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.5) 100%);
+  background: linear-gradient(
+    145deg,
+    rgba(30, 41, 59, 0.5) 0%,
+    rgba(15, 23, 42, 0.5) 100%
+  );
   transform: translateY(-2px);
   box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
 }
@@ -84,7 +92,9 @@
 
 .glass-input:focus {
   border-color: #135bec;
-  box-shadow: 0 0 0 1px #135bec, 0 0 0 4px rgba(19, 91, 236, 0.15);
+  box-shadow:
+    0 0 0 1px #135bec,
+    0 0 0 4px rgba(19, 91, 236, 0.15);
   background-color: rgba(15, 23, 42, 0.95);
   outline: none;
 }
@@ -226,5 +236,7 @@ input:-webkit-autofill:focus {
 
 /* Neon shadow */
 .shadow-neon-blue {
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
+  box-shadow:
+    0 0 10px rgba(59, 130, 246, 0.5),
+    0 0 20px rgba(59, 130, 246, 0.3);
 }
