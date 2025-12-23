@@ -252,7 +252,7 @@ export default function PlansPage() {
         <div className="pointer-events-auto flex items-center gap-1 p-1.5 bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl">
           {/* Date Picker */}
           <div className="flex items-center gap-3 px-4 py-2 hover:bg-white/5 rounded-xl transition-colors text-sm font-medium border-r border-white/5">
-            <span className="material-symbols-outlined text-slate-400 text-[20px]">
+            <span className="material-symbols-rounded text-slate-400 text-[20px]">
               calendar_month
             </span>
             <input
@@ -265,7 +265,7 @@ export default function PlansPage() {
 
           {/* Problem Type Select */}
           <div className="flex items-center gap-2 px-4 py-2 border-r border-white/5">
-            <span className="material-symbols-outlined text-slate-400 text-[20px]">
+            <span className="material-symbols-rounded text-slate-400 text-[20px]">
               tune
             </span>
             <select
@@ -302,14 +302,14 @@ export default function PlansPage() {
           {/* Cargo Summary */}
           <div className="flex items-center gap-4 px-4 py-2 border-r border-white/5 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-slate-400 text-[18px]">
+              <span className="material-symbols-rounded text-slate-400 text-[18px]">
                 inventory_2
               </span>
               <span className="text-white font-bold">{stats.totalCargos}</span>
               <span className="text-slate-400">kargo</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-slate-400 text-[18px]">
+              <span className="material-symbols-rounded text-slate-400 text-[18px]">
                 scale
               </span>
               <span className="text-white font-bold">
@@ -332,7 +332,7 @@ export default function PlansPage() {
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-[20px]">
+                <span className="material-symbols-rounded text-[20px]">
                   play_arrow
                 </span>
                 Planlamayı Başlat
@@ -351,7 +351,7 @@ export default function PlansPage() {
               onClick={() => setSelectedPlan(null)}
               className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
             >
-              <span className="material-symbols-outlined text-[20px]">
+              <span className="material-symbols-rounded text-[20px]">
                 close
               </span>
             </button>
@@ -389,7 +389,7 @@ export default function PlansPage() {
               disabled={activateMutation.isPending}
               className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all"
             >
-              <span className="material-symbols-outlined">check_circle</span>
+              <span className="material-symbols-rounded">check_circle</span>
               Planı Aktifleştir
             </button>
           )}
@@ -401,7 +401,7 @@ export default function PlansPage() {
         <div className="absolute top-24 left-6 z-30 w-72 bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
           <div className="px-4 py-3 border-b border-white/5 bg-white/5">
             <h3 className="text-sm font-bold flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">
+              <span className="material-symbols-rounded text-[18px]">
                 history
               </span>
               Geçmiş Planlar
@@ -449,7 +449,7 @@ export default function PlansPage() {
         {/* Panel Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/5">
           <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary">
+            <span className="material-symbols-rounded text-primary">
               list_alt
             </span>
             <h3 className="text-lg font-bold tracking-tight">
@@ -461,12 +461,12 @@ export default function PlansPage() {
           </div>
           <div className="flex gap-2">
             <button className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
-              <span className="material-symbols-outlined text-[20px]">
+              <span className="material-symbols-rounded text-[20px]">
                 filter_list
               </span>
             </button>
             <button className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
-              <span className="material-symbols-outlined text-[20px]">
+              <span className="material-symbols-rounded text-[20px]">
                 fullscreen
               </span>
             </button>
@@ -493,7 +493,7 @@ export default function PlansPage() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
               <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-4 border border-white/10">
-                <span className="material-symbols-outlined text-slate-500 text-3xl">
+                <span className="material-symbols-rounded text-slate-500 text-3xl">
                   route
                 </span>
               </div>
@@ -524,7 +524,7 @@ export default function PlansPage() {
       {/* Error Toast */}
       {createMutation.isError && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 bg-red-500/90 backdrop-blur-sm text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
-          <span className="material-symbols-outlined">error</span>
+          <span className="material-symbols-rounded">error</span>
           <span>
             {(createMutation.error as any)?.response?.data?.message ||
               "Plan oluşturulurken hata oluştu"}
@@ -533,7 +533,7 @@ export default function PlansPage() {
             onClick={() => createMutation.reset()}
             className="ml-2 p-1 hover:bg-white/20 rounded-lg transition-colors"
           >
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <span className="material-symbols-rounded text-[18px]">close</span>
           </button>
         </div>
       )}

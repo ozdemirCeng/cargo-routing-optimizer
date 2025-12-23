@@ -82,7 +82,7 @@ export default function VehicleCard({
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center border border-white/10">
             <span
-              className={`material-symbols-outlined ${isIdle ? "text-slate-500" : "text-white"}`}
+              className={`material-symbols-rounded ${isIdle ? "text-slate-500" : "text-white"}`}
             >
               {isIdle ? "add_circle" : "local_shipping"}
             </span>
@@ -173,7 +173,7 @@ export function AddVehicleCard({ onClick }: { onClick?: () => void }) {
       className="min-w-[340px] h-full bg-[#1e293b]/40 border border-dashed border-slate-600 rounded-xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer opacity-60 hover:opacity-100 hover:bg-white/5 hover:border-primary/50 transition-all group"
     >
       <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 group-hover:border-primary/30 transition-colors">
-        <span className="material-symbols-outlined text-slate-500 group-hover:text-primary text-3xl transition-colors">
+        <span className="material-symbols-rounded text-slate-500 group-hover:text-primary text-3xl transition-colors">
           add
         </span>
       </div>

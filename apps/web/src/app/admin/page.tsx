@@ -48,7 +48,7 @@ function KPICard({
           </h3>
         </div>
         <div className={`p-2 ${iconBg} rounded-lg`}>
-          <span className={`material-symbols-outlined ${iconColor}`}>
+          <span className={`material-symbols-rounded ${iconColor}`}>
             {icon}
           </span>
         </div>
@@ -63,7 +63,7 @@ function KPICard({
                 : "text-emerald-400 bg-emerald-500/10"
             }`}
           >
-            <span className="material-symbols-outlined text-[14px] mr-1">
+            <span className="material-symbols-rounded text-[14px] mr-1">
               {changeType === "down" ? "arrow_downward" : "arrow_upward"}
             </span>
             {change}%
@@ -382,7 +382,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-center h-full">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
-            <span className="material-symbols-outlined text-red-400 text-3xl">
+            <span className="material-symbols-rounded text-red-400 text-3xl">
               error
             </span>
           </div>
@@ -507,7 +507,7 @@ export default function AdminDashboard() {
                 Araç Kapasite Kullanımı
               </h2>
               <button className="text-slate-400 hover:text-white">
-                <span className="material-symbols-outlined text-[20px]">
+                <span className="material-symbols-rounded text-[20px]">
                   more_vert
                 </span>
               </button>
@@ -567,7 +567,7 @@ export default function AdminDashboard() {
                               <span>
                                 {trip.route?.startStation || "Başlangıç"}
                               </span>
-                              <span className="material-symbols-outlined text-slate-600 text-[14px]">
+                              <span className="material-symbols-rounded text-slate-600 text-[14px]">
                                 arrow_forward
                               </span>
                               <span>{trip.route?.endStation || "Bitiş"}</span>
@@ -584,7 +584,7 @@ export default function AdminDashboard() {
                               href={`/admin/trips/${trip.id}`}
                               className="text-slate-500 hover:text-white transition-colors"
                             >
-                              <span className="material-symbols-outlined text-[18px]">
+                              <span className="material-symbols-rounded text-[18px]">
                                 visibility
                               </span>
                             </Link>
@@ -646,7 +646,7 @@ export default function AdminDashboard() {
                           <td className="p-4 text-slate-300">
                             <div className="flex items-center gap-2">
                               <span>{trip.from}</span>
-                              <span className="material-symbols-outlined text-slate-600 text-[14px]">
+                              <span className="material-symbols-rounded text-slate-600 text-[14px]">
                                 arrow_forward
                               </span>
                               <span>{trip.to}</span>
@@ -660,7 +660,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="p-4 text-center">
                             <button className="text-slate-500 hover:text-white transition-colors">
-                              <span className="material-symbols-outlined text-[18px]">
+                              <span className="material-symbols-rounded text-[18px]">
                                 visibility
                               </span>
                             </button>
