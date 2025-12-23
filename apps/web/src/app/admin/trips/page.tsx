@@ -1,304 +1,591 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  TextField,
-  Grid,
-  Button,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import { Refresh as RefreshIcon, Map as MapIcon } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { tripsApi, vehiclesApi } from '@/lib/api';
-import dynamic from 'next/dynamic';
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { tripsApi, vehiclesApi } from "@/lib/api";
+import dynamic from "next/dynamic";
 
-const Map = dynamic(() => import('@/components/Map'), { ssr: false });
+const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
-const VEHICLE_COLORS = ['#1976d2', '#d32f2f', '#388e3c', '#f57c00', '#7b1fa2'];
+const VEHICLE_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f97316", "#8b5cf6"];
+
+interface Trip {
+  id: string;
+  vehicleId: string;
+  vehicle?: {
+    id: string;
+    plateNumber: string;
+    name: string;
+  };
+  planId?: string;
+  status: string;
+  startedAt?: string;
+  endedAt?: string;
+  totalDistanceKm?: number;
+  totalLoadKg?: number;
+  polyline?: string;
+  waypoints?: Waypoint[];
+  createdAt: string;
+}
+
+interface Waypoint {
+  id: string;
+  sequenceOrder: number;
+  station?: {
+    id: string;
+    name: string;
+    code?: string;
+    latitude: number;
+    longitude: number;
+    isHub: boolean;
+  };
+}
+
+interface Vehicle {
+  id: string;
+  plateNumber: string;
+  name: string;
+}
 
 export default function TripsPage() {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({
-    vehicleId: '',
-    status: '',
-    date: '',
+    vehicleId: "",
+    status: "",
+    date: "",
   });
-  const [selectedTrip, setSelectedTrip] = useState<any>(null);
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
 
   const { data: vehicles } = useQuery({
-    queryKey: ['vehicles'],
+    queryKey: ["vehicles"],
     queryFn: () => vehiclesApi.getAll().then((r) => r.data),
   });
 
-  const { data: trips, isLoading, refetch } = useQuery({
-    queryKey: ['trips', filters],
+  const {
+    data: trips,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ["trips", filters],
     queryFn: () => tripsApi.getAll(filters).then((r) => r.data),
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: any) => tripsApi.updateStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      tripsApi.updateStatus(id, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trips'] });
+      queryClient.invalidateQueries({ queryKey: ["trips"] });
     },
   });
 
-  const statusLabels: any = {
-    pending: 'Bekliyor',
-    in_progress: 'Devam Ediyor',
-    completed: 'Tamamlandı',
-    cancelled: 'İptal',
+  // Statistics
+  const stats = useMemo(() => {
+    if (!trips) return { active: 0, completed: 0, pending: 0 };
+    const active = trips.filter((t: Trip) => t.status === "in_progress").length;
+    const completed = trips.filter(
+      (t: Trip) => t.status === "completed"
+    ).length;
+    const pending = trips.filter((t: Trip) => t.status === "pending").length;
+    return { active, completed, pending };
+  }, [trips]);
+
+  // Pagination
+  const paginatedTrips = useMemo(() => {
+    if (!trips) return [];
+    const start = (currentPage - 1) * rowsPerPage;
+    return trips.slice(start, start + rowsPerPage);
+  }, [trips, currentPage]);
+
+  const totalPages = Math.ceil((trips?.length || 0) / rowsPerPage);
+
+  const statusLabels: Record<string, string> = {
+    pending: "Bekliyor",
+    in_progress: "Yolda",
+    completed: "Tamamlandı",
+    cancelled: "İptal",
   };
 
-  const statusColors: any = {
-    pending: 'warning',
-    in_progress: 'info',
-    completed: 'success',
-    cancelled: 'error',
+  const statusStyles: Record<string, string> = {
+    pending: "neon-badge-orange",
+    in_progress: "neon-badge-blue",
+    completed: "neon-badge-green",
+    cancelled: "neon-badge-red",
   };
 
-  const columns: GridColDef[] = [
-    { field: 'id', headerName: 'ID', width: 80 },
-    {
-      field: 'vehicle',
-      headerName: 'Araç',
-      width: 120,
-      valueGetter: (params) => params.row.vehicle?.plate,
-    },
-    {
-      field: 'startedAt',
-      headerName: 'Başlangıç',
-      width: 150,
-      valueFormatter: (params) =>
-        params.value ? new Date(params.value).toLocaleString('tr-TR') : '-',
-    },
-    {
-      field: 'endedAt',
-      headerName: 'Bitiş',
-      width: 150,
-      valueFormatter: (params) =>
-        params.value ? new Date(params.value).toLocaleString('tr-TR') : '-',
-    },
-    {
-      field: 'totalDistanceKm',
-      headerName: 'Mesafe',
-      width: 100,
-      valueFormatter: (params) =>
-        params.value ? `${Number(params.value).toFixed(1)} km` : '-',
-    },
-    {
-      field: 'totalLoadKg',
-      headerName: 'Yük',
-      width: 100,
-      valueFormatter: (params) =>
-        params.value ? `${Number(params.value).toFixed(1)} kg` : '-',
-    },
-    {
-      field: 'status',
-      headerName: 'Durum',
-      width: 130,
-      renderCell: (params) => (
-        <Chip
-          label={statusLabels[params.value]}
-          color={statusColors[params.value]}
-          size="small"
-        />
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'İşlemler',
-      width: 150,
-      renderCell: (params) => (
-        <Box>
-          <Tooltip title="Haritada Gör">
-            <IconButton
-              size="small"
-              onClick={() => setSelectedTrip(params.row)}
-            >
-              <MapIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          {params.row.status === 'pending' && (
-            <Button
-              size="small"
-              onClick={() =>
-                updateStatusMutation.mutate({ id: params.row.id, status: 'in_progress' })
-              }
-            >
-              Başlat
-            </Button>
-          )}
-          {params.row.status === 'in_progress' && (
-            <Button
-              size="small"
-              color="success"
-              onClick={() =>
-                updateStatusMutation.mutate({ id: params.row.id, status: 'completed' })
-              }
-            >
-              Bitir
-            </Button>
-          )}
-        </Box>
-      ),
-    },
-  ];
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("tr-TR", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
-  // Harita verileri
-  const mapStations = selectedTrip?.waypoints?.map((w: any) => ({
-    id: w.station?.id,
-    name: w.station?.name,
-    code: w.station?.code || '',
-    latitude: Number(w.station?.latitude),
-    longitude: Number(w.station?.longitude),
-    isHub: w.station?.isHub,
-  })) || [];
+  // Map data
+  const mapStations =
+    selectedTrip?.waypoints?.map((w) => ({
+      id: w.station?.id || "",
+      name: w.station?.name || "",
+      code: w.station?.code || "",
+      latitude: Number(w.station?.latitude),
+      longitude: Number(w.station?.longitude),
+      isHub: w.station?.isHub || false,
+    })) || [];
 
-  const mapRoutes = selectedTrip?.polyline ? [{
-    vehicleId: selectedTrip.vehicleId,
-    vehicleName: selectedTrip.vehicle?.plate,
-    color: VEHICLE_COLORS[0],
-    polyline: selectedTrip.polyline,
-    stations: mapStations,
-  }] : [];
+  const mapRoutes = selectedTrip?.polyline
+    ? [
+        {
+          vehicleId: selectedTrip.vehicleId,
+          vehicleName: selectedTrip.vehicle?.plateNumber || "",
+          color: VEHICLE_COLORS[0],
+          polyline: selectedTrip.polyline,
+          stations: mapStations,
+        },
+      ]
+    : [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+          <span className="text-slate-400 text-sm">Seferler yükleniyor...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">Sefer Takip</Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
+    <div className="flex-1 flex flex-col gap-6 overflow-auto p-1">
+      {/* Header with Stats */}
+      <div className="glass-panel rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+        {/* Decorative blur */}
+        <div className="absolute top-0 left-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+
+        <div className="flex items-center gap-4 z-10">
+          <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+            <span className="material-symbols-rounded text-[28px]">
+              local_shipping
+            </span>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">
+              Sefer Takip
+            </h1>
+            <p className="text-slate-400 text-sm">Operasyonel İzleme Paneli</p>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="flex flex-wrap gap-4 w-full md:w-auto z-10">
+          <div className="glass-card rounded-xl p-3 pl-4 pr-6 flex items-center gap-3 min-w-[140px] hover:bg-slate-800/60 transition-colors cursor-default">
+            <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+              <span className="material-symbols-rounded text-[20px]">
+                moving
+              </span>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
+                Aktif
+              </div>
+              <div className="text-xl font-bold text-white">{stats.active}</div>
+            </div>
+          </div>
+          <div className="glass-card rounded-xl p-3 pl-4 pr-6 flex items-center gap-3 min-w-[140px] hover:bg-slate-800/60 transition-colors cursor-default">
+            <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center text-green-400">
+              <span className="material-symbols-rounded text-[20px]">
+                done_all
+              </span>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
+                Biten
+              </div>
+              <div className="text-xl font-bold text-white">
+                {stats.completed}
+              </div>
+            </div>
+          </div>
+          <div className="glass-card rounded-xl p-3 pl-4 pr-6 flex items-center gap-3 min-w-[140px] hover:bg-slate-800/60 transition-colors cursor-default">
+            <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-400">
+              <span className="material-symbols-rounded text-[20px]">
+                schedule
+              </span>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">
+                Bekliyor
+              </div>
+              <div className="text-xl font-bold text-white">
+                {stats.pending}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="glass-panel rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto flex-1">
+          {/* Vehicle Filter */}
+          <div className="relative group w-full md:w-64">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+              <span className="material-symbols-rounded text-[20px]">
+                directions_car
+              </span>
+            </div>
+            <select
+              className="glass-input block w-full pl-10 pr-10 py-2.5 rounded-lg appearance-none cursor-pointer"
+              value={filters.vehicleId}
+              onChange={(e) => {
+                setFilters({ ...filters, vehicleId: e.target.value });
+                setCurrentPage(1);
+              }}
+            >
+              <option value="" className="bg-slate-800">
+                Tüm Araçlar
+              </option>
+              {((vehicles as Vehicle[]) || []).map((v) => (
+                <option key={v.id} value={v.id} className="bg-slate-800">
+                  {v.plateNumber}
+                </option>
+              ))}
+            </select>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+              <span className="material-symbols-rounded text-[20px]">
+                expand_more
+              </span>
+            </div>
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative group w-full md:w-48">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+              <span className="material-symbols-rounded text-[20px]">
+                filter_list
+              </span>
+            </div>
+            <select
+              className="glass-input block w-full pl-10 pr-10 py-2.5 rounded-lg appearance-none cursor-pointer"
+              value={filters.status}
+              onChange={(e) => {
+                setFilters({ ...filters, status: e.target.value });
+                setCurrentPage(1);
+              }}
+            >
+              <option value="" className="bg-slate-800">
+                Durum Seçiniz
+              </option>
+              <option value="pending" className="bg-slate-800">
+                Bekliyor
+              </option>
+              <option value="in_progress" className="bg-slate-800">
+                Yolda
+              </option>
+              <option value="completed" className="bg-slate-800">
+                Tamamlandı
+              </option>
+              <option value="cancelled" className="bg-slate-800">
+                İptal
+              </option>
+            </select>
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+              <span className="material-symbols-rounded text-[20px]">
+                expand_more
+              </span>
+            </div>
+          </div>
+
+          {/* Date Filter */}
+          <div className="relative group w-full md:w-48">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
+              <span className="material-symbols-rounded text-[20px]">
+                calendar_today
+              </span>
+            </div>
+            <input
+              type="date"
+              className="glass-input block w-full pl-10 pr-3 py-2.5 rounded-lg appearance-none [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+              value={filters.date}
+              onChange={(e) => {
+                setFilters({ ...filters, date: e.target.value });
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Refresh Button */}
+        <button
           onClick={() => refetch()}
+          className="w-full md:w-auto h-10 px-4 flex items-center justify-center gap-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+          title="Yenile"
         >
-          Yenile
-        </Button>
-      </Box>
+          <span className="material-symbols-rounded">refresh</span>
+          <span className="md:hidden">Yenile</span>
+        </button>
+      </div>
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Araç</InputLabel>
-                <Select
-                  value={filters.vehicleId}
-                  label="Araç"
-                  onChange={(e) => setFilters({ ...filters, vehicleId: e.target.value })}
-                >
-                  <MenuItem value="">Tümü</MenuItem>
-                  {vehicles?.map((v: any) => (
-                    <MenuItem key={v.id} value={v.id}>
-                      {v.plate}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Durum</InputLabel>
-                <Select
-                  value={filters.status}
-                  label="Durum"
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                >
-                  <MenuItem value="">Tümü</MenuItem>
-                  <MenuItem value="pending">Bekliyor</MenuItem>
-                  <MenuItem value="in_progress">Devam Ediyor</MenuItem>
-                  <MenuItem value="completed">Tamamlandı</MenuItem>
-                  <MenuItem value="cancelled">İptal</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="Tarih"
-                value={filters.date}
-                onChange={(e) => setFilters({ ...filters, date: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+      {/* Main Content */}
+      <div className="flex gap-6 flex-1 min-h-[500px]">
+        {/* Table */}
+        <div
+          className={`glass-panel rounded-2xl overflow-hidden flex flex-col ${selectedTrip ? "flex-1" : "w-full"}`}
+        >
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/10 bg-slate-800/30">
+                  <th className="p-4 pl-6 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                    ID
+                  </th>
+                  <th className="p-4 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                    Araç Bilgisi
+                  </th>
+                  <th className="p-4 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                    Rota
+                  </th>
+                  <th className="p-4 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                    Başlangıç
+                  </th>
+                  <th className="p-4 text-xs font-semibold tracking-wider text-slate-400 uppercase">
+                    Durum
+                  </th>
+                  <th className="p-4 pr-6 text-xs font-semibold tracking-wider text-slate-400 uppercase text-right">
+                    İşlemler
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="text-sm divide-y divide-white/5">
+                {paginatedTrips.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="text-center py-12 text-slate-400"
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="material-symbols-rounded text-[48px] opacity-50">
+                          local_shipping
+                        </span>
+                        <span>Sefer bulunamadı</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedTrips.map((trip: Trip) => {
+                    const firstStation =
+                      trip.waypoints?.[0]?.station?.name || "-";
+                    const lastStation =
+                      trip.waypoints?.[trip.waypoints.length - 1]?.station
+                        ?.name || "-";
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={selectedTrip ? 6 : 12}>
-          <Card>
-            <CardContent>
-              {isLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <DataGrid
-                  rows={trips || []}
-                  columns={columns}
-                  autoHeight
-                  pageSizeOptions={[10, 25]}
-                  initialState={{
-                    pagination: { paginationModel: { pageSize: 10 } },
-                  }}
-                  disableRowSelectionOnClick
-                />
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+                    return (
+                      <tr
+                        key={trip.id}
+                        className="table-row-hover group transition-colors duration-200 cursor-pointer"
+                        onClick={() => setSelectedTrip(trip)}
+                      >
+                        <td className="p-4 pl-6 font-mono text-slate-500">
+                          #TR-{trip.id.slice(-4).toUpperCase()}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-white">
+                              {trip.vehicle?.plateNumber || "-"}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {trip.vehicle?.name || "-"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2 text-slate-300">
+                            <span className="font-medium">{firstStation}</span>
+                            <span className="material-symbols-rounded text-[16px] text-slate-500">
+                              arrow_forward
+                            </span>
+                            <span className="font-medium">{lastStation}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-slate-400">
+                          {formatDate(trip.startedAt || trip.createdAt)}
+                        </td>
+                        <td className="p-4">
+                          <span
+                            className={`${statusStyles[trip.status] || "neon-badge-blue"} px-3 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1.5`}
+                          >
+                            {trip.status === "in_progress" && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                            )}
+                            {statusLabels[trip.status] || trip.status}
+                          </span>
+                        </td>
+                        <td className="p-4 pr-6 text-right">
+                          <div
+                            className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => setSelectedTrip(trip)}
+                              className="p-2 rounded-lg hover:bg-primary/20 hover:text-primary text-slate-400 transition-colors"
+                              title="Harita"
+                            >
+                              <span className="material-symbols-rounded text-[20px]">
+                                map
+                              </span>
+                            </button>
+                            {trip.status === "pending" && (
+                              <button
+                                onClick={() =>
+                                  updateStatusMutation.mutate({
+                                    id: trip.id,
+                                    status: "in_progress",
+                                  })
+                                }
+                                className="p-2 rounded-lg hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 transition-colors"
+                                title="Başlat"
+                              >
+                                <span className="material-symbols-rounded text-[20px]">
+                                  play_arrow
+                                </span>
+                              </button>
+                            )}
+                            {trip.status === "in_progress" && (
+                              <button
+                                onClick={() =>
+                                  updateStatusMutation.mutate({
+                                    id: trip.id,
+                                    status: "completed",
+                                  })
+                                }
+                                className="p-2 rounded-lg hover:bg-green-500/20 text-slate-400 hover:text-green-400 transition-colors"
+                                title="Bitir"
+                              >
+                                <span className="material-symbols-rounded text-[20px]">
+                                  check_circle
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
+          {/* Pagination */}
+          <div className="p-4 border-t border-white/10 bg-slate-800/20 flex items-center justify-between text-xs text-slate-400 mt-auto">
+            <div>
+              Toplam {trips?.length || 0} kayıttan{" "}
+              {trips && trips.length > 0
+                ? (currentPage - 1) * rowsPerPage + 1
+                : 0}
+              -{Math.min(currentPage * rowsPerPage, trips?.length || 0)} arası
+              gösteriliyor
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors disabled:opacity-50"
+              >
+                <span className="material-symbols-rounded text-[18px]">
+                  chevron_left
+                </span>
+              </button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+                      currentPage === pageNum
+                        ? "bg-primary/20 text-primary border border-primary/30 font-semibold"
+                        : "hover:bg-white/5"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 transition-colors disabled:opacity-50"
+              >
+                <span className="material-symbols-rounded text-[18px]">
+                  chevron_right
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Map Panel */}
         {selectedTrip && (
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="h6">
-                    Sefer #{selectedTrip.id} - {selectedTrip.vehicle?.plate}
-                  </Typography>
-                  <Button size="small" onClick={() => setSelectedTrip(null)}>
-                    Kapat
-                  </Button>
-                </Box>
+          <div className="glass-panel rounded-2xl overflow-hidden flex flex-col w-[500px] shrink-0">
+            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-white">
+                  Sefer #{selectedTrip.id.slice(-4).toUpperCase()}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  {selectedTrip.vehicle?.plateNumber}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedTrip(null)}
+                className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              >
+                <span className="material-symbols-rounded">close</span>
+              </button>
+            </div>
 
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Duraklar:{' '}
-                    {selectedTrip.waypoints?.map((w: any, i: number) => (
-                      <Chip
-                        key={i}
-                        label={`${w.sequenceOrder}. ${w.station?.name}`}
-                        size="small"
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                      />
-                    ))}
-                  </Typography>
-                </Box>
+            {/* Waypoints */}
+            {selectedTrip.waypoints && selectedTrip.waypoints.length > 0 && (
+              <div className="p-4 border-b border-white/10">
+                <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-2">
+                  Duraklar
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTrip.waypoints.map((w, i) => (
+                    <span
+                      key={w.id || i}
+                      className="px-2 py-1 rounded-lg bg-slate-800/50 text-xs text-slate-300 border border-white/5"
+                    >
+                      {w.sequenceOrder}. {w.station?.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                <Map
-                  stations={mapStations}
-                  routes={mapRoutes}
-                  height="400px"
-                />
-              </CardContent>
-            </Card>
-          </Grid>
+            {/* Map */}
+            <div className="flex-1 min-h-[400px]">
+              <Map stations={mapStations} routes={mapRoutes} height="100%" />
+            </div>
+          </div>
         )}
-      </Grid>
-    </Box>
+      </div>
+    </div>
   );
 }

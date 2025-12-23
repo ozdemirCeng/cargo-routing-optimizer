@@ -193,7 +193,7 @@ export default function AdminLayout({
           </header>
 
           {/* Page Content */}
-          <div className="flex-1 overflow-hidden rounded-2xl glass">
+          <div className="flex-1 overflow-auto rounded-2xl glass">
             {children}
           </div>
         </main>
