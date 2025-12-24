@@ -34,16 +34,16 @@ export default function CargoRequestMap({
   // Kocaeli merkez koordinatları
   const CENTER: [number, number] = [29.9, 40.76];
 
-  // Custom dark style
-  const darkStyle = {
+  // Light style for voyager
+  const lightStyle = {
     version: 8,
     sources: {
       "osm-tiles": {
         type: "raster",
         tiles: [
-          "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-          "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+          "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+          "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+          "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
         ],
         tileSize: 256,
         attribution:
@@ -66,7 +66,7 @@ export default function CargoRequestMap({
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: darkStyle,
+      style: lightStyle,
       center: CENTER,
       zoom: 10,
     });

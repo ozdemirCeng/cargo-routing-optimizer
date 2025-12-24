@@ -277,38 +277,16 @@ export default function CargosPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-1">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-2">
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full glass-panel">
-          <span className="text-gray-400 material-symbols-rounded text-[20px]">
-            home
-          </span>
-          <span className="text-gray-600 mx-1">/</span>
-          <span className="text-gray-300 text-sm font-medium">
-            Kargo Siparişleri
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="relative flex items-center justify-center h-10 w-10 rounded-full glass-panel text-gray-400 hover:text-white hover:bg-white/10 transition-all">
-            <span className="material-symbols-rounded">notifications</span>
-            <span className="absolute top-2 right-2.5 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
-          </button>
-          <button className="flex items-center justify-center h-10 w-10 rounded-full glass-panel text-gray-400 hover:text-white hover:bg-white/10 transition-all">
-            <span className="material-symbols-rounded">settings</span>
-          </button>
-        </div>
-      </div>
-
+    <div className="flex-1 flex flex-col overflow-hidden p-4 md:p-6">
       {/* Main Content Panel */}
-      <div className="flex-1 glass-panel rounded-2xl flex flex-col overflow-hidden relative border border-white/10 shadow-2xl">
+      <div className="flex-1 glass-panel rounded-2xl flex flex-col overflow-hidden relative">
         {/* Panel Header */}
-        <div className="p-6 pb-2 flex items-center justify-between border-b border-white/5 bg-gradient-to-r from-blue-900/20 to-transparent">
+        <div className="p-6 pb-2 flex items-center justify-between border-b border-white/5">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight glow-text">
+            <h2 className="text-2xl font-bold text-white tracking-tight">
               Kargo Yönetimi
             </h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-slate-400 mt-1">
               Sipariş takibi ve durum yönetimi
             </p>
           </div>
@@ -358,9 +336,19 @@ export default function CargosPage() {
                   Teslim Edildi
                 </option>
               </select>
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 material-symbols-rounded text-[20px]">
-                expand_more
-              </span>
+              <svg
+                className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
             </div>
           </div>
           <div className="md:col-span-3 relative">
@@ -389,9 +377,19 @@ export default function CargosPage() {
                   </option>
                 ))}
               </select>
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 material-symbols-rounded text-[20px]">
-                expand_more
-              </span>
+              <svg
+                className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
             </div>
           </div>
           <div className="md:col-span-3 relative">
@@ -666,17 +664,17 @@ export default function CargosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={handleCloseDialog}
           ></div>
 
           {/* Modal */}
-          <div className="relative glass-panel rounded-2xl w-full max-w-lg mx-4 shadow-2xl border border-white/10 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-slate-900/40 backdrop-blur-2xl rounded-2xl w-full max-w-lg mx-4 shadow-2xl border border-white/10 animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <span className="material-symbols-rounded text-primary">
+                <div className="h-10 w-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                  <span className="material-symbols-rounded text-blue-400">
                     {editingCargo ? "edit" : "add_box"}
                   </span>
                 </div>
@@ -715,7 +713,7 @@ export default function CargosPage() {
 
               {/* User Selection */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
                   Kullanıcı (Opsiyonel)
                 </label>
                 <div className="relative">
@@ -735,15 +733,25 @@ export default function CargosPage() {
                       </option>
                     ))}
                   </select>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 material-symbols-rounded">
-                    expand_more
-                  </span>
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
                 </div>
               </div>
 
               {/* Station Selection */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
                   Teslim Noktası <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
@@ -767,15 +775,25 @@ export default function CargosPage() {
                       </option>
                     ))}
                   </select>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 material-symbols-rounded">
-                    expand_more
-                  </span>
+                  <svg
+                    className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
                 </div>
               </div>
 
               {/* Weight Input */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
                   Ağırlık (kg) <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
@@ -799,7 +817,7 @@ export default function CargosPage() {
 
               {/* Date Input */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
                   Planlanan Tarih
                 </label>
                 <div className="relative">
@@ -822,7 +840,7 @@ export default function CargosPage() {
 
               {/* Description Input */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
                   Açıklama
                 </label>
                 <textarea

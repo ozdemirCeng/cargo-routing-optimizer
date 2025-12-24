@@ -123,12 +123,10 @@ export default function AdminLayout({
                 {user.fullName.charAt(0).toUpperCase()}
               </div>
               <div className="flex flex-col flex-1">
-                <span className="text-sm font-semibold text-slate-800 dark:text-white">
+                <span className="text-sm font-semibold text-white">
                   {user.fullName}
                 </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  Admin
-                </span>
+                <span className="text-xs text-slate-300">Admin</span>
               </div>
               <span className="material-symbols-rounded text-slate-400">
                 expand_more
@@ -137,18 +135,16 @@ export default function AdminLayout({
 
             {/* User Menu Dropdown */}
             {showUserMenu && (
-              <div className="absolute bottom-full left-4 right-4 mb-2 glass rounded-xl shadow-xl border border-slate-200/30 dark:border-slate-700/50 overflow-hidden z-50">
-                <div className="p-3 border-b border-slate-200/30 dark:border-slate-700/50">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white">
+              <div className="absolute bottom-full left-4 right-4 mb-2 glass rounded-xl shadow-xl border border-white/10 overflow-hidden z-50">
+                <div className="p-3 border-b border-white/10">
+                  <p className="text-sm font-semibold text-white">
                     {user.fullName}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {user.email}
-                  </p>
+                  <p className="text-xs text-slate-300">{user.email}</p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/20 transition-colors"
                 >
                   <span className="material-symbols-rounded text-xl">
                     logout
@@ -184,11 +180,18 @@ export default function AdminLayout({
                 </span>
                 <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
               </button>
-              <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-200/50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300 transition-colors">
+              <Link
+                href="/admin/settings"
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                  pathname === "/admin/settings"
+                    ? "bg-primary/20 text-primary"
+                    : "hover:bg-slate-200/50 dark:hover:bg-slate-700/50 text-slate-600 dark:text-slate-300"
+                }`}
+              >
                 <span className="material-symbols-rounded text-xl">
                   settings
                 </span>
-              </button>
+              </Link>
             </div>
           </header>
 

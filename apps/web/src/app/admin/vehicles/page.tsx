@@ -169,7 +169,7 @@ export default function VehiclesPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col gap-6 overflow-auto p-1">
+    <div className="flex-1 flex flex-col gap-6 overflow-auto p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -328,21 +328,21 @@ export default function VehiclesPage() {
 
         <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="glass-table-header sticky top-0 z-10 backdrop-blur-md">
+            <thead className="sticky top-0 z-10 backdrop-blur-md bg-slate-800/40 border-b border-white/5">
               <tr>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <th className="py-4 px-6 text-xs font-bold text-slate-300 uppercase tracking-wider">
                   Plaka
                 </th>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <th className="py-4 px-6 text-xs font-bold text-slate-300 uppercase tracking-wider">
                   Kapasite
                 </th>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <th className="py-4 px-6 text-xs font-bold text-slate-300 uppercase tracking-wider">
                   Oluşturulma
                 </th>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <th className="py-4 px-6 text-xs font-bold text-slate-300 uppercase tracking-wider">
                   Durum
                 </th>
-                <th className="py-4 px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">
+                <th className="py-4 px-6 text-xs font-bold text-slate-300 uppercase tracking-wider text-right">
                   İşlemler
                 </th>
               </tr>

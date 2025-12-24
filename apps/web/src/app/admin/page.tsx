@@ -37,7 +37,7 @@ function KPICard({
     <div className="glass-panel p-6 rounded-xl flex flex-col justify-between h-[160px] group hover:border-primary/30 transition-all duration-300">
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
+          <p className="text-slate-300 text-sm font-semibold mb-1">{title}</p>
           <h3 className="text-3xl font-bold text-white tracking-tight">
             {value}
             {unit && (
@@ -68,7 +68,7 @@ function KPICard({
             </span>
             {change}%
           </span>
-          <span className="text-slate-500 text-xs">{changeLabel}</span>
+          <span className="text-slate-400 text-xs">{changeLabel}</span>
         </div>
       )}
 
@@ -80,7 +80,7 @@ function KPICard({
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-right text-xs text-slate-500 mt-1">
+          <p className="text-right text-xs text-slate-400 mt-1">
             {progressLabel}
           </p>
         </div>
@@ -402,12 +402,9 @@ export default function AdminDashboard() {
       <div className="max-w-[1600px] mx-auto">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white mb-2">
+          <h1 className="text-3xl font-bold text-white tracking-tight">
             Analytics Dashboard
           </h1>
-          <p className="text-slate-400">
-            Kargo optimizasyon sisteminin genel durumu
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-12 gap-6">
@@ -421,7 +418,7 @@ export default function AdminDashboard() {
               iconColor="text-emerald-400"
               change={12}
               changeType="down"
-              changeLabel="vs last week"
+              changeLabel="geçen haftaya göre"
             />
           </div>
 
@@ -434,7 +431,7 @@ export default function AdminDashboard() {
               iconBg="bg-blue-500/10"
               iconColor="text-blue-400"
               progress={75}
-              progressLabel="75% of monthly cap"
+              progressLabel="aylık limitin %75'i"
             />
           </div>
 
@@ -477,7 +474,7 @@ export default function AdminDashboard() {
               iconColor="text-purple-400"
               change={4}
               changeType="up"
-              changeLabel="optimization impact"
+              changeLabel="optimizasyon etkisi"
             />
           </div>
 
@@ -489,12 +486,12 @@ export default function AdminDashboard() {
                 <h2 className="text-lg font-bold text-white">
                   Senaryo Maliyet Analizi
                 </h2>
-                <p className="text-slate-500 text-sm">
-                  Comparing optimization models against current baseline
+                <p className="text-slate-400 text-sm">
+                  Optimizasyon modelleri ile mevcut durum karşılaştırması
                 </p>
               </div>
               <button className="text-xs font-medium text-primary bg-primary/10 px-3 py-1.5 rounded hover:bg-primary/20 transition-colors">
-                Export Report
+                Rapor İndir
               </button>
             </div>
             <BarChart data={barChartData} />
@@ -515,7 +512,7 @@ export default function AdminDashboard() {
             <DonutChart
               segments={donutSegments}
               centerValue={`${stats.avgLoad}%`}
-              centerLabel="Avg Load"
+              centerLabel="Ort. Yük"
             />
           </div>
 

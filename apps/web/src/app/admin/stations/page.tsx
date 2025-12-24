@@ -204,8 +204,8 @@ export default function StationsPage() {
 
       {/* Station List - Bottom Left */}
       <div className="absolute bottom-4 left-4 z-20 w-80">
-        <div className="glass rounded-2xl shadow-xl max-h-64 overflow-hidden flex flex-col">
-          <div className="p-3 border-b border-slate-700/50 flex items-center justify-between">
+        <div className="glass-dark rounded-2xl shadow-xl max-h-64 overflow-hidden flex flex-col">
+          <div className="p-3 border-b border-white/10 flex items-center justify-between">
             <h3 className="text-sm font-bold text-white">İstasyonlar</h3>
             <span className="text-xs text-slate-300">
               {filteredStations.length} adet
@@ -264,8 +264,8 @@ export default function StationsPage() {
 
       {/* Station Details Panel - Right Side */}
       {selectedStation && (
-        <aside className="absolute top-0 right-0 bottom-0 w-96 rounded-2xl glass shadow-2xl flex flex-col z-30 transition-transform duration-300">
-          <div className="p-5 flex items-center justify-between border-b border-slate-700/50">
+        <aside className="absolute top-0 right-0 bottom-0 w-96 rounded-2xl bg-slate-800/70 backdrop-blur-2xl border border-white/10 shadow-2xl flex flex-col z-30 transition-transform duration-300">
+          <div className="p-5 flex items-center justify-between border-b border-white/10">
             <h2 className="text-lg font-bold text-white">İstasyon Detayları</h2>
             <button
               onClick={() => setSelectedStation(null)}
@@ -301,36 +301,38 @@ export default function StationsPage() {
 
             {/* Station Info Grid */}
             <div className="grid gap-4 text-sm">
-              <div className="space-y-1">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+              <div className="space-y-1.5">
+                <span className="text-xs uppercase tracking-wider text-slate-300 font-bold">
                   KOD
                 </span>
-                <div className="text-white font-medium font-mono">
+                <div className="text-white font-semibold font-mono text-base">
                   {selectedStation.code || "-"}
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+              <div className="space-y-1.5">
+                <span className="text-xs uppercase tracking-wider text-slate-300 font-bold">
                   KOORDİNATLAR
                 </span>
-                <div className="text-white font-mono text-xs">
+                <div className="text-white font-mono text-sm">
                   Lat: {Number(selectedStation.latitude).toFixed(6)}, Long:{" "}
                   {Number(selectedStation.longitude).toFixed(6)}
                 </div>
               </div>
 
               {selectedStation.address && (
-                <div className="space-y-1">
-                  <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+                <div className="space-y-1.5">
+                  <span className="text-xs uppercase tracking-wider text-slate-300 font-bold">
                     ADRES
                   </span>
-                  <div className="text-white">{selectedStation.address}</div>
+                  <div className="text-white font-medium">
+                    {selectedStation.address}
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-1">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+              <div className="space-y-1.5">
+                <span className="text-xs uppercase tracking-wider text-slate-300 font-bold">
                   DURUM
                 </span>
                 <div>
@@ -353,11 +355,11 @@ export default function StationsPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+              <div className="space-y-1.5">
+                <span className="text-xs uppercase tracking-wider text-slate-300 font-bold">
                   SON GÜNCELLEME
                 </span>
-                <div className="text-white">
+                <div className="text-white font-medium">
                   {formatDate(selectedStation.updatedAt)}
                 </div>
               </div>
@@ -395,10 +397,12 @@ export default function StationsPage() {
                     pin_drop
                   </span>
                   <div>
-                    <span className="block text-slate-400 text-xs">
+                    <span className="block text-slate-300 text-xs font-semibold">
                       Enlem (Latitude)
                     </span>
-                    {Number(selectedStation.latitude).toFixed(6)}°
+                    <span className="font-medium">
+                      {Number(selectedStation.latitude).toFixed(6)}°
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 text-sm text-white">
@@ -406,26 +410,15 @@ export default function StationsPage() {
                     explore
                   </span>
                   <div>
-                    <span className="block text-slate-400 text-xs">
+                    <span className="block text-slate-300 text-xs font-semibold">
                       Boylam (Longitude)
                     </span>
-                    {Number(selectedStation.longitude).toFixed(6)}°
+                    <span className="font-medium">
+                      {Number(selectedStation.longitude).toFixed(6)}°
+                    </span>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Map Preview */}
-            <div className="p-4 rounded-xl bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/30">
-              <a
-                href={`https://www.google.com/maps?q=${selectedStation.latitude},${selectedStation.longitude}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 text-primary hover:text-blue-600 font-medium transition-colors"
-              >
-                <span className="material-symbols-rounded">open_in_new</span>
-                Google Maps&apos;te Aç
-              </a>
             </div>
           </div>
         </aside>
@@ -438,7 +431,7 @@ export default function StationsPage() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={handleCloseModal}
           ></div>
-          <div className="relative glass rounded-2xl shadow-2xl w-full max-w-md p-6">
+          <div className="relative bg-slate-800/70 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white">
                 {editMode ? "İstasyon Düzenle" : "Yeni İstasyon Ekle"}
