@@ -59,12 +59,42 @@ export default function RouteMap({
   // Kocaeli merkez koordinatları
   const CENTER: [number, number] = [29.9, 40.76];
 
+  // User tarafındaki harita ile aynı: CARTO Voyager (light, okunabilir)
+  const voyagerStyle = {
+    version: 8,
+    sources: {
+      "osm-tiles": {
+        type: "raster",
+        tiles: [
+          "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+          "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+          "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+        ],
+        tileSize: 256,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      },
+    },
+    layers: [
+      {
+        id: "osm-tiles-layer",
+        type: "raster",
+        source: "osm-tiles",
+        minzoom: 0,
+        maxzoom: 19,
+        paint: {
+          "raster-opacity": 0.95,
+        },
+      },
+    ],
+  } as maplibregl.StyleSpecification;
+
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+      style: voyagerStyle,
       center: CENTER,
       zoom: 10,
       attributionControl: false,
@@ -244,29 +274,6 @@ export default function RouteMap({
     <div className="absolute inset-0 z-0">
       <div ref={mapContainer} className="w-full h-full" />
 
-      {/* Grid overlay for tech feel */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 opacity-20">
-        <defs>
-          <pattern
-            id="grid"
-            width="100"
-            height="100"
-            patternUnits="userSpaceOnUse"
-          >
-            <path
-              d="M 100 0 L 0 0 0 100"
-              fill="none"
-              stroke="rgba(255,255,255,0.05)"
-              strokeWidth="1"
-            />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
-
-      {/* Gradient overlay at edges */}
-      <div className="absolute inset-0 pointer-events-none z-10 bg-gradient-to-t from-background-dark/50 via-transparent to-background-dark/30" />
-
       <style jsx global>{`
         .route-popup .maplibregl-popup-content {
           background: transparent;
@@ -275,24 +282,6 @@ export default function RouteMap({
         }
         .route-popup .maplibregl-popup-tip {
           display: none;
-        }
-        .maplibregl-ctrl-group {
-          background: rgba(15, 23, 42, 0.8) !important;
-          border: 1px solid rgba(255, 255, 255, 0.1) !important;
-          backdrop-filter: blur(8px);
-        }
-        .maplibregl-ctrl-group button {
-          background: transparent !important;
-        }
-        .maplibregl-ctrl-group button:hover {
-          background: rgba(255, 255, 255, 0.1) !important;
-        }
-        .maplibregl-ctrl-group button + button {
-          border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-        }
-        .maplibregl-ctrl button.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon,
-        .maplibregl-ctrl button.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon {
-          filter: invert(1);
         }
       `}</style>
     </div>

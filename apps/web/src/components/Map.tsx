@@ -33,12 +33,12 @@ interface MapProps {
 }
 
 const VEHICLE_COLORS = [
-  '#1976d2', // blue
-  '#d32f2f', // red
-  '#388e3c', // green
-  '#f57c00', // orange
-  '#7b1fa2', // purple
-  '#0097a7', // cyan
+  '#135bec', // blue
+  '#f97316', // orange
+  '#22c55e', // green
+  '#a855f7', // purple
+  '#06b6d4', // cyan
+  '#ec4899', // pink
 ];
 
 export default function Map({
@@ -61,12 +61,16 @@ export default function Map({
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: CENTER,
       zoom: 10,
+      attributionControl: false,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.current.addControl(
+      new maplibregl.NavigationControl({ showCompass: false }),
+      'bottom-right'
+    );
 
     map.current.on('load', () => {
       setLoaded(true);
@@ -90,20 +94,36 @@ export default function Map({
     stations.forEach((station) => {
       const el = document.createElement('div');
       el.className = 'station-marker';
-      el.style.width = station.isHub ? '24px' : '16px';
-      el.style.height = station.isHub ? '24px' : '16px';
-      el.style.borderRadius = '50%';
-      el.style.backgroundColor = station.isHub ? '#d32f2f' : '#1976d2';
-      el.style.border = '3px solid white';
-      el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
       el.style.cursor = 'pointer';
 
-      const popup = new maplibregl.Popup({ offset: 25 }).setHTML(`
-        <div style="padding: 4px;">
-          <strong>${station.name}</strong>
-          ${station.isHub ? '<br/><em>(Merkez Hub)</em>' : ''}
-          ${station.cargoCount !== undefined ? `<br/>Kargo: ${station.cargoCount}` : ''}
-          ${station.totalWeightKg !== undefined ? `<br/>Ağırlık: ${station.totalWeightKg} kg` : ''}
+      if (station.isHub) {
+        el.innerHTML = `
+          <div class="relative">
+            <div class="absolute inset-0 bg-white rounded-full animate-ping opacity-30"></div>
+            <div class="w-5 h-5 rounded-full bg-white border-2 border-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"></div>
+          </div>
+        `;
+        el.style.width = '20px';
+        el.style.height = '20px';
+      } else {
+        el.innerHTML = `
+          <div class="w-3 h-3 rounded-full bg-white/80 border-2 border-primary shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+        `;
+        el.style.width = '12px';
+        el.style.height = '12px';
+      }
+
+      const popup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 15,
+        className: 'kargo-map-popup',
+      }).setHTML(`
+        <div class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider">
+          ${station.name}
+          ${station.isHub ? '<div class="mt-1 text-[10px] font-semibold opacity-80">Merkez Depo</div>' : ''}
+          ${station.cargoCount !== undefined ? `<div class="mt-1 text-[10px] font-semibold opacity-80">Kargo: ${station.cargoCount}</div>` : ''}
+          ${station.totalWeightKg !== undefined ? `<div class="mt-1 text-[10px] font-semibold opacity-80">Ağırlık: ${station.totalWeightKg} kg</div>` : ''}
         </div>
       `);
 
@@ -192,13 +212,44 @@ export default function Map({
 
   return (
     <div
-      ref={mapContainer}
       style={{
         width: '100%',
         height,
         borderRadius: '8px',
         overflow: 'hidden',
+        position: 'relative',
       }}
-    />
+    >
+      <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+
+      <style jsx global>{`
+        .kargo-map-popup .maplibregl-popup-content {
+          background: transparent;
+          padding: 0;
+          box-shadow: none;
+        }
+        .kargo-map-popup .maplibregl-popup-tip {
+          display: none;
+        }
+        .maplibregl-ctrl-group {
+          background: rgba(15, 23, 42, 0.8) !important;
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+          backdrop-filter: blur(8px);
+        }
+        .maplibregl-ctrl-group button {
+          background: transparent !important;
+        }
+        .maplibregl-ctrl-group button:hover {
+          background: rgba(255, 255, 255, 0.1) !important;
+        }
+        .maplibregl-ctrl-group button + button {
+          border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        .maplibregl-ctrl button.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon,
+        .maplibregl-ctrl button.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon {
+          filter: invert(1);
+        }
+      `}</style>
+    </div>
   );
 }

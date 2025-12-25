@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { dashboardApi, stationsApi, tripsApi, plansApi } from "@/lib/api";
+import { dashboardApi, stationsApi, tripsApi } from "@/lib/api";
 import Link from "next/link";
 
 // KPI Card Component
@@ -292,13 +292,6 @@ export default function AdminDashboard() {
   const { data: trips } = useQuery({
     queryKey: ["recent-trips"],
     queryFn: () => tripsApi.getAll({ limit: 5 }).then((r) => r.data),
-    staleTime: 30000,
-    retry: 2,
-  });
-
-  const { data: plans } = useQuery({
-    queryKey: ["plans"],
-    queryFn: () => plansApi.getAll().then((r) => r.data),
     staleTime: 30000,
     retry: 2,
   });

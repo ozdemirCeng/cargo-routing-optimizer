@@ -205,7 +205,7 @@ export default function StationsPage() {
       {/* Station List - Bottom Left */}
       <div className="absolute bottom-4 left-4 z-20 w-80">
         <div className="glass-dark rounded-2xl shadow-xl max-h-64 overflow-hidden flex flex-col">
-          <div className="p-3 border-b border-white/10 flex items-center justify-between">
+          <div className="p-3 border-b border-slate-700/50 flex items-center justify-between">
             <h3 className="text-sm font-bold text-white">İstasyonlar</h3>
             <span className="text-xs text-slate-300">
               {filteredStations.length} adet
@@ -264,8 +264,8 @@ export default function StationsPage() {
 
       {/* Station Details Panel - Right Side */}
       {selectedStation && (
-        <aside className="absolute top-0 right-0 bottom-0 w-96 rounded-2xl bg-slate-800/70 backdrop-blur-2xl border border-white/10 shadow-2xl flex flex-col z-30 transition-transform duration-300">
-          <div className="p-5 flex items-center justify-between border-b border-white/10">
+        <aside className="absolute top-0 right-0 bottom-0 w-96 rounded-2xl glass-dark shadow-2xl flex flex-col z-30 transition-transform duration-300">
+          <div className="p-5 flex items-center justify-between border-b border-slate-700/50">
             <h2 className="text-lg font-bold text-white">İstasyon Detayları</h2>
             <button
               onClick={() => setSelectedStation(null)}
@@ -431,7 +431,7 @@ export default function StationsPage() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={handleCloseModal}
           ></div>
-          <div className="relative bg-slate-800/70 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl w-full max-w-md p-6">
+          <div className="relative glass-dark rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white">
                 {editMode ? "İstasyon Düzenle" : "Yeni İstasyon Ekle"}

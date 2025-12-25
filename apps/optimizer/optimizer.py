@@ -16,6 +16,7 @@ from models import (
     AssignedCargo, UserInfo, UnassignedCargo, AlgorithmInfo, ErrorInfo
 )
 import random
+import uuid
 
 
 @dataclass
@@ -182,13 +183,18 @@ class VRPOptimizer:
         return None
     
     def calculate_route_distance(self, route: List[Station]) -> float:
-        """Rota toplam mesafesi (Hub -> istasyonlar -> Hub)"""
+        """Rota toplam mesafesi (istasyonlar -> Hub).
+
+        Araçların tek bir merkezden çıkması zorunlu değil; optimizasyona göre
+        farklı başlangıç noktalarından kalkabilir. Bu yüzden başlangıç için
+        Hub -> ilk istasyon bacağı maliyete dahil edilmez.
+        """
         if not route:
             return 0
-        
-        total = self.get_distance(self.hub.id, route[0].id)
+
+        total = 0
         for i in range(len(route) - 1):
-            total += self.get_distance(route[i].id, route[i+1].id)
+            total += self.get_distance(route[i].id, route[i + 1].id)
         total += self.get_distance(route[-1].id, self.hub.id)
         
         return total
@@ -260,7 +266,7 @@ class VRPOptimizer:
             # Yeni kiralık araç oluştur
             rented_count += 1
             rental_vehicle = Vehicle(
-                id=f"rental_{rented_count}",
+                id=f"rental_{uuid.uuid4().hex}",
                 name=f"Kiralık Araç {rented_count}",
                 capacity_kg=self.params.rental_capacity_kg,
                 is_rented=True,
@@ -416,21 +422,9 @@ class VRPOptimizer:
             rental_cost = vehicle.rental_cost if vehicle.is_rented else 0
             route_cost = distance_cost + rental_cost
             
-            # Route sequence
-            sequence = [
-                RouteStop(
-                    order=0,
-                    station_id=self.hub.id,
-                    station_name=self.hub.name,
-                    station_code="HUB",
-                    latitude=self.hub.lat,
-                    longitude=self.hub.lon,
-                    is_hub=True,
-                    action="start",
-                    cargo_count=0,
-                    weight_kg=0
-                )
-            ]
+            # Route sequence: araçlar farklı istasyonlardan başlayabilir;
+            # bu yüzden başlangıç stop'u Hub değil, ilk pickup istasyonu olur.
+            sequence = []
             
             assigned_cargos = []
             user_cargo_counts = {}
@@ -438,7 +432,7 @@ class VRPOptimizer:
             
             for order, station in enumerate(route):
                 sequence.append(RouteStop(
-                    order=order + 1,
+                    order=order,
                     station_id=station.id,
                     station_name=station.name,
                     station_code=station.code,
@@ -464,7 +458,7 @@ class VRPOptimizer:
                         user_cargo_counts.get(cargo["user_id"], 0) + 1
             
             sequence.append(RouteStop(
-                order=len(route) + 1,
+                order=len(route),
                 station_id=self.hub.id,
                 station_name=self.hub.name,
                 station_code="HUB",
@@ -476,10 +470,10 @@ class VRPOptimizer:
                 weight_kg=0
             ))
             
-            # Polyline birleştir
+            # Polyline birleştir (başlangıç istasyonu -> ... -> Hub)
             polylines = []
-            prev_id = self.hub.id
-            for station in route:
+            prev_id = route[0].id
+            for station in route[1:]:
                 pl = self.get_polyline(prev_id, station.id)
                 if pl:
                     polylines.append(pl)
@@ -488,10 +482,10 @@ class VRPOptimizer:
             if pl:
                 polylines.append(pl)
             
-            # Duration hesapla
+            # Duration hesapla (başlangıç istasyonu -> ... -> Hub)
             duration = 0
-            prev_id = self.hub.id
-            for station in route:
+            prev_id = route[0].id
+            for station in route[1:]:
                 duration += self.get_duration(prev_id, station.id)
                 prev_id = station.id
             duration += self.get_duration(prev_id, self.hub.id)

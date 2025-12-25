@@ -33,13 +33,43 @@ export default function StationMap({
   // Kocaeli merkez koordinatları
   const CENTER: [number, number] = [29.9, 40.76];
 
+  // User tarafındaki harita ile aynı: CARTO Voyager (light, okunabilir)
+  const voyagerStyle = {
+    version: 8,
+    sources: {
+      "osm-tiles": {
+        type: "raster",
+        tiles: [
+          "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+          "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+          "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+        ],
+        tileSize: 256,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      },
+    },
+    layers: [
+      {
+        id: "osm-tiles-layer",
+        type: "raster",
+        source: "osm-tiles",
+        minzoom: 0,
+        maxzoom: 19,
+        paint: {
+          "raster-opacity": 0.95,
+        },
+      },
+    ],
+  } as maplibregl.StyleSpecification;
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+      style: voyagerStyle,
       center: CENTER,
       zoom: 10,
     });

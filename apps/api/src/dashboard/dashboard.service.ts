@@ -9,42 +9,33 @@ export class DashboardService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [
-      totalCargos,
-      pendingCargos,
-      totalVehicles,
-      activeTrips,
-      todayPlans,
-      completedTrips,
-    ] = await Promise.all([
-      this.prisma.cargo.count(),
-      this.prisma.cargo.count({ where: { status: "pending" } }),
-      this.prisma.vehicle.count({ where: { isActive: true } }),
-      this.prisma.trip.count({ where: { status: "in_progress" } }),
-      this.prisma.plan.count({
-        where: {
-          planDate: { gte: today },
-          status: { in: ["draft", "active"] },
-        },
-      }),
-      this.prisma.trip.findMany({
-        where: { status: "completed" },
-        select: { actualCost: true },
-      }),
-    ]);
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        total_cargos: number;
+        pending_cargos: number;
+        total_vehicles: number;
+        active_trips: number;
+        today_plans: number;
+        total_cost_today: string | number;
+      }>
+    >`
+      SELECT
+        (SELECT COUNT(*)::int FROM cargos) AS total_cargos,
+        (SELECT COUNT(*)::int FROM cargos WHERE status = 'pending') AS pending_cargos,
+        (SELECT COUNT(*)::int FROM vehicles WHERE is_active = TRUE) AS total_vehicles,
+        (SELECT COUNT(*)::int FROM trips WHERE status = 'in_progress') AS active_trips,
+        (SELECT COUNT(*)::int FROM plans WHERE plan_date >= ${today} AND status IN ('draft','active')) AS today_plans,
+        COALESCE((SELECT SUM(COALESCE(actual_cost, 0)) FROM trips WHERE status = 'completed'), 0) AS total_cost_today
+    `;
 
-    const totalCostToday = completedTrips.reduce(
-      (sum, t) => sum + Number(t.actualCost || 0),
-      0
-    );
-
+    const r = rows?.[0];
     return {
-      totalCargos,
-      pendingCargos,
-      totalVehicles,
-      activeTrips,
-      todayPlans,
-      totalCostToday,
+      totalCargos: r?.total_cargos ?? 0,
+      pendingCargos: r?.pending_cargos ?? 0,
+      totalVehicles: r?.total_vehicles ?? 0,
+      activeTrips: r?.active_trips ?? 0,
+      todayPlans: r?.today_plans ?? 0,
+      totalCostToday: Number(r?.total_cost_today ?? 0),
     };
   }
 

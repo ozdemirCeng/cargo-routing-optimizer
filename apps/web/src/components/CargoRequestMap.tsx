@@ -34,8 +34,8 @@ export default function CargoRequestMap({
   // Kocaeli merkez koordinatları
   const CENTER: [number, number] = [29.9, 40.76];
 
-  // Light style for voyager
-  const lightStyle = {
+  // Voyager tema (okunabilir etiketler)
+  const voyagerStyle = {
     version: 8,
     sources: {
       "osm-tiles": {
@@ -57,6 +57,9 @@ export default function CargoRequestMap({
         source: "osm-tiles",
         minzoom: 0,
         maxzoom: 19,
+        paint: {
+          "raster-opacity": 0.95,
+        },
       },
     ],
   } as maplibregl.StyleSpecification;
@@ -66,7 +69,7 @@ export default function CargoRequestMap({
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: lightStyle,
+      style: voyagerStyle,
       center: CENTER,
       zoom: 10,
     });
@@ -160,11 +163,20 @@ export default function CargoRequestMap({
   ]);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={mapContainer} className="w-full h-full" />
+    <div className="relative w-full h-full" style={{ borderRadius: '1.5rem', overflow: 'hidden' }}>
+      <div ref={mapContainer} className="w-full h-full" style={{ borderRadius: '1.5rem' }} />
 
       {/* Zoom Controls Custom Styling */}
       <style jsx global>{`
+        .maplibregl-map {
+          border-radius: 1.5rem !important;
+        }
+        
+        .maplibregl-canvas-container,
+        .maplibregl-canvas {
+          border-radius: 1.5rem !important;
+        }
+
         .maplibregl-ctrl-group {
           background: rgba(30, 41, 59, 0.9) !important;
           border: 1px solid rgba(71, 85, 105, 0.5) !important;
@@ -207,33 +219,33 @@ export default function CargoRequestMap({
         }
 
         .marker-container .marker-icon {
-          color: #64748b;
+          color: #475569;
           transition: all 0.3s ease;
-          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
         }
 
         .marker-container .marker-icon svg {
-          width: 36px;
-          height: 36px;
+          width: 32px;
+          height: 32px;
         }
 
         .marker-container:hover .marker-icon {
-          color: #135bec;
-          transform: scale(1.1);
+          color: #059669;
+          transform: scale(1.15);
         }
 
         .marker-container.hub .marker-icon {
-          color: #dc2626;
+          color: #0891b2;
         }
 
         .marker-container.selected .marker-icon {
-          color: #135bec;
-          filter: drop-shadow(0 0 12px rgba(19, 91, 236, 0.8));
+          color: #059669;
+          filter: drop-shadow(0 0 10px rgba(5, 150, 105, 0.7));
         }
 
         .marker-container.selected .marker-icon svg {
-          width: 48px;
-          height: 48px;
+          width: 40px;
+          height: 40px;
         }
 
         .ping-ring {
@@ -244,7 +256,7 @@ export default function CargoRequestMap({
           width: 60px;
           height: 60px;
           border-radius: 50%;
-          background: rgba(19, 91, 236, 0.3);
+          background: rgba(16, 185, 129, 0.3);
           animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
         }
 
@@ -264,7 +276,7 @@ export default function CargoRequestMap({
           margin-bottom: 8px;
           padding: 6px 12px;
           background: rgba(30, 41, 59, 0.95);
-          border: 1px solid rgba(19, 91, 236, 0.5);
+          border: 1px solid rgba(16, 185, 129, 0.5);
           border-radius: 6px;
           white-space: nowrap;
           display: flex;
@@ -310,22 +322,20 @@ export default function CargoRequestMap({
       `}</style>
 
       {/* Legend */}
-      <div className="absolute bottom-6 right-6 bg-slate-800/90 backdrop-blur-md border border-slate-700 rounded-lg p-3 shadow-lg z-10">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(19,91,236,0.8)]" />
-          <span className="text-xs font-medium text-gray-300">
-            Seçili İstasyon
-          </span>
-        </div>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-3 h-3 rounded-full bg-red-600" />
-          <span className="text-xs font-medium text-gray-400">Merkez Hub</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-slate-500" />
-          <span className="text-xs font-medium text-gray-400">
-            Diğer İstasyonlar
-          </span>
+      <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl px-4 py-3 shadow-xl z-10">
+        <div className="flex items-center gap-5 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+            <span className="font-semibold text-slate-700">Seçili</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-cyan-500" />
+            <span className="font-semibold text-slate-600">Hub</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-slate-500" />
+            <span className="font-semibold text-slate-600">İstasyonlar</span>
+          </div>
         </div>
       </div>
     </div>

@@ -83,10 +83,10 @@ function TrackCargoContent() {
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
       {/* Search Card */}
-      <div className="glass rounded-2xl p-6 flex-shrink-0">
+      <div className="glass-dark rounded-2xl p-6 flex-shrink-0">
         <div className="flex gap-4 items-center">
           <div className="flex-1 relative">
-            <span className="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+            <span className="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-slate-200">
               search
             </span>
             <input
@@ -117,7 +117,7 @@ function TrackCargoContent() {
 
       {/* Error State */}
       {isError && (
-        <div className="glass rounded-2xl p-6 flex items-center gap-4 border border-red-500/30 bg-red-500/10">
+        <div className="glass-dark rounded-2xl p-6 flex items-center gap-4 border border-red-500/30 bg-red-500/10">
           <span className="material-symbols-rounded text-red-400 text-2xl">
             error
           </span>
@@ -131,7 +131,7 @@ function TrackCargoContent() {
       {cargo && (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-hidden">
           {/* Cargo Info Card */}
-          <div className="glass rounded-2xl overflow-hidden flex flex-col">
+          <div className="glass-dark rounded-2xl overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-700/50">
               <h2 className="text-lg font-bold text-white">Kargo Bilgileri</h2>
             </div>
@@ -238,7 +238,7 @@ function TrackCargoContent() {
           </div>
 
           {/* Route Map Card */}
-          <div className="glass rounded-2xl overflow-hidden flex flex-col">
+          <div className="glass-dark rounded-2xl overflow-hidden flex flex-col">
             <div className="p-6 border-b border-slate-700/50">
               <h2 className="text-lg font-bold text-white">Araç Rotası</h2>
             </div>
@@ -312,7 +312,7 @@ function TrackCargoContent() {
 
       {/* Empty State */}
       {!isLoading && !isError && !cargo && (
-        <div className="flex-1 glass rounded-2xl flex flex-col items-center justify-center text-center p-8">
+        <div className="flex-1 glass-dark rounded-2xl flex flex-col items-center justify-center text-center p-8">
           <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mb-4">
             <span className="material-symbols-rounded text-4xl text-slate-200">
               package_2

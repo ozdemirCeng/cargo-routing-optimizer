@@ -288,76 +288,110 @@ export class PlansService {
     // 8-9. Plan + rotalar + atamalar (sequential - PgBouncer uyumlu)
     let planId: string;
     try {
-      // Plan oluştur
-      const plan = await this.prisma.plan.create({
-        data: {
-          planDate,
-          problemType: data.problemType,
-          status: "draft",
-          totalDistanceKm: optimizerResult.summary.total_distance_km,
-          totalCost: optimizerResult.summary.total_cost,
-          totalCargos: optimizerResult.summary.total_cargos,
-          totalWeightKg: optimizerResult.summary.total_weight_kg,
-          vehiclesUsed: optimizerResult.summary.vehicles_used,
-          vehiclesRented: optimizerResult.summary.vehicles_rented,
-          costPerKm,
-          rentalCost,
-          optimizerResult,
-          createdById: userId,
-        },
-      });
-      planId = plan.id;
+      planId = await this.prisma.$transaction(async (tx) => {
+        // Optimizer may create rented vehicles on the fly (unlimited_vehicles).
+        // Persist them so plan route foreign keys are valid.
+        for (const route of optimizerResult.routes) {
+          if (!route?.is_rented) continue;
 
-      // Kargoları güncelle
-      if (allAssignedCargoIds.length > 0) {
-        await this.prisma.cargo.updateMany({
-          where: {
-            id: { in: allAssignedCargoIds },
-            status: "pending",
-            scheduledDate: { gte: dayStart, lt: dayEnd },
-          },
-          data: { status: "assigned" },
-        });
-      }
+          const vehicleId = String(route.vehicle_id);
+          const vehicleName = String(route.vehicle_name || "Kiralık Araç");
+          const plateNumber = (`RENT-${vehicleId}`.toUpperCase()).slice(0, 50);
 
-      // Rotaları ve cargo atamalarını toplu oluştur
-      for (const route of optimizerResult.routes) {
-        const planRoute = await this.prisma.planRoute.create({
-          data: {
-            planId: plan.id,
-            vehicleId: route.vehicle_id,
-            routeOrder: route.route_order,
-            totalDistanceKm: route.total_distance_km,
-            totalDurationMin: route.total_duration_minutes,
-            totalCost: route.total_cost,
-            totalWeightKg: route.total_weight_kg,
-            cargoCount: route.cargo_count,
-            routeStations: route.route_sequence.map((s: any) => s.station_id),
-            routePolyline: route.polyline,
-            routeDetails: route.route_sequence,
-          },
-        });
-
-        // Cargo atamalarını batch olarak oluştur
-        if (route.assigned_cargos?.length > 0) {
-          await this.prisma.planRouteCargo.createMany({
-            data: route.assigned_cargos.map((assignedCargo: any) => ({
-              planRouteId: planRoute.id,
-              cargoId: assignedCargo.cargo_id,
-              pickupOrder: assignedCargo.pickup_order,
-            })),
+          await tx.vehicle.upsert({
+            where: { id: vehicleId },
+            update: {
+              name: vehicleName,
+              ownership: "rented",
+              capacityKg: 500,
+              rentalCost,
+              isActive: true,
+            },
+            create: {
+              id: vehicleId,
+              plateNumber,
+              name: vehicleName,
+              ownership: "rented",
+              capacityKg: 500,
+              rentalCost,
+              isActive: true,
+            },
           });
         }
 
-        // Trip oluştur
-        await this.prisma.trip.create({
+        const plan = await tx.plan.create({
           data: {
-            planRouteId: planRoute.id,
-            vehicleId: route.vehicle_id,
-            status: "scheduled",
+            planDate,
+            problemType: data.problemType,
+            status: "draft",
+            totalDistanceKm: optimizerResult.summary.total_distance_km,
+            totalCost: optimizerResult.summary.total_cost,
+            totalCargos: optimizerResult.summary.total_cargos,
+            totalWeightKg: optimizerResult.summary.total_weight_kg,
+            vehiclesUsed: optimizerResult.summary.vehicles_used,
+            vehiclesRented: optimizerResult.summary.vehicles_rented,
+            costPerKm,
+            rentalCost,
+            optimizerResult,
+            createdById: userId,
           },
         });
-      }
+
+        if (allAssignedCargoIds.length > 0) {
+          const updateRes = await tx.cargo.updateMany({
+            where: {
+              id: { in: allAssignedCargoIds },
+              status: "pending",
+              scheduledDate: { gte: dayStart, lt: dayEnd },
+            },
+            data: { status: "assigned" },
+          });
+
+          if (updateRes.count !== allAssignedCargoIds.length) {
+            throw new ConflictException(
+              "Bazı kargolar bu sırada başka bir plana atanmış; tekrar deneyin"
+            );
+          }
+        }
+
+        for (const route of optimizerResult.routes) {
+          const planRoute = await tx.planRoute.create({
+            data: {
+              planId: plan.id,
+              vehicleId: route.vehicle_id,
+              routeOrder: route.route_order,
+              totalDistanceKm: route.total_distance_km,
+              totalDurationMin: route.total_duration_minutes,
+              totalCost: route.total_cost,
+              totalWeightKg: route.total_weight_kg,
+              cargoCount: route.cargo_count,
+              routeStations: route.route_sequence.map((s: any) => s.station_id),
+              routePolyline: route.polyline,
+              routeDetails: route.route_sequence,
+            },
+          });
+
+          if (route.assigned_cargos?.length > 0) {
+            await tx.planRouteCargo.createMany({
+              data: route.assigned_cargos.map((assignedCargo: any) => ({
+                planRouteId: planRoute.id,
+                cargoId: assignedCargo.cargo_id,
+                pickupOrder: assignedCargo.pickup_order,
+              })),
+            });
+          }
+
+          await tx.trip.create({
+            data: {
+              planRouteId: planRoute.id,
+              vehicleId: route.vehicle_id,
+              status: "scheduled",
+            },
+          });
+        }
+
+        return plan.id;
+      });
     } catch (error: any) {
       if (
         error?.constructor?.name === "PrismaClientKnownRequestError" &&

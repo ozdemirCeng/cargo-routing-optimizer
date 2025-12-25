@@ -34,6 +34,38 @@ async function main() {
   });
   console.log("✅ Regular user created:", user.email);
 
+  // Seed default system parameters (used by planning)
+  const systemParameters = [
+    {
+      paramKey: "cost_per_km",
+      paramValue: 1,
+      description: "KM başı maliyet",
+    },
+    {
+      paramKey: "rental_cost_500kg",
+      paramValue: 200,
+      description: "500kg kiralık araç maliyeti",
+    },
+  ];
+
+  for (const p of systemParameters) {
+    await prisma.systemParameter.upsert({
+      where: { paramKey: p.paramKey },
+      update: {
+        paramValue: p.paramValue,
+        description: p.description,
+        updatedById: admin.id,
+      },
+      create: {
+        paramKey: p.paramKey,
+        paramValue: p.paramValue,
+        description: p.description,
+        updatedById: admin.id,
+      },
+    });
+  }
+  console.log("✅ System parameters seeded");
+
   // Create some sample vehicles
   const vehicles = [
     {
@@ -104,8 +136,16 @@ async function main() {
       code: "IZM",
       lat: 40.7654,
       long: 29.9408,
+      isHub: false,
+    },
+    {
+      name: "Umuttepe Merkez Depo",
+      code: "UMT",
+      // Kocaeli Üniversitesi Umuttepe Yerleşkesi (OSM)
+      lat: 40.8187372,
+      long: 29.922908,
       isHub: true,
-    }, // Merkez depo
+    }, // Merkez depo (Hub)
     { name: "Kandıra Dağıtım Merkezi", code: "KND", lat: 41.07, long: 30.15 },
     {
       name: "Karamürsel Dağıtım Merkezi",
@@ -130,7 +170,13 @@ async function main() {
   for (const station of stations) {
     await prisma.station.upsert({
       where: { code: station.code },
-      update: {},
+      update: {
+        name: station.name,
+        latitude: station.lat,
+        longitude: station.long,
+        isHub: station.isHub || false,
+        isActive: true,
+      },
       create: {
         name: station.name,
         code: station.code,

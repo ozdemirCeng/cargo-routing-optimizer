@@ -38,7 +38,7 @@ const statusConfig = {
   },
   idle: {
     label: "IDLE",
-    textColor: "text-slate-400",
+    textColor: "text-slate-300",
     bgColor: "bg-slate-700/50",
     borderColor: "border-slate-600",
     barColor: "bg-slate-600",
@@ -82,7 +82,7 @@ export default function VehicleCard({
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center border border-white/10">
             <span
-              className={`material-symbols-rounded ${isIdle ? "text-slate-500" : "text-white"}`}
+              className={`material-symbols-rounded ${isIdle ? "text-slate-200" : "text-white"}`}
             >
               {isIdle ? "add_circle" : "local_shipping"}
             </span>
@@ -93,7 +93,7 @@ export default function VehicleCard({
             >
               {vehicle.name}
             </p>
-            <p className="text-slate-400 text-xs font-mono">
+            <p className="text-slate-300 text-xs font-mono">
               {vehicle.plateNumber}
             </p>
           </div>
@@ -108,7 +108,7 @@ export default function VehicleCard({
       {/* Route Info or Idle State */}
       {isIdle ? (
         <div className="flex flex-col gap-1 mt-1 flex-1 justify-center items-center text-center">
-          <p className="text-sm text-slate-400">Atama bekleniyor</p>
+          <p className="text-sm text-slate-200">Atama bekleniyor</p>
           <button className="mt-2 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
             Rota Ata
           </button>
@@ -116,17 +116,17 @@ export default function VehicleCard({
       ) : (
         <div className="flex flex-col gap-1 mt-1">
           {vehicle.route && (
-            <div className="flex justify-between text-xs text-slate-400 mb-1">
+            <div className="flex justify-between text-xs text-slate-300 mb-1">
               <span>Rota</span>
               <span className="text-white">
                 {vehicle.route.from}{" "}
-                <span className="text-slate-500 mx-1">&gt;</span>{" "}
+                <span className="text-slate-300 mx-1">&gt;</span>{" "}
                 {vehicle.route.to}
               </span>
             </div>
           )}
           {vehicle.cost !== undefined && vehicle.cost !== null && (
-            <div className="flex justify-between text-xs text-slate-400">
+            <div className="flex justify-between text-xs text-slate-300">
               <span>Maliyet</span>
               <span className="text-white font-mono">
                 ₺{Number(vehicle.cost).toFixed(0)}
@@ -139,7 +139,7 @@ export default function VehicleCard({
       {/* Load Capacity Bar */}
       <div className={`mt-auto ${isIdle ? "opacity-50" : ""}`}>
         <div className="flex justify-between text-xs mb-1.5">
-          <span className={isIdle ? "text-slate-500" : "text-slate-400"}>
+          <span className={isIdle ? "text-slate-300" : "text-slate-300"}>
             Kapasite
           </span>
           <span
@@ -173,15 +173,15 @@ export function AddVehicleCard({ onClick }: { onClick?: () => void }) {
       className="min-w-[340px] h-full bg-[#1e293b]/40 border border-dashed border-slate-600 rounded-xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer opacity-60 hover:opacity-100 hover:bg-white/5 hover:border-primary/50 transition-all group"
     >
       <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 group-hover:border-primary/30 transition-colors">
-        <span className="material-symbols-rounded text-slate-500 group-hover:text-primary text-3xl transition-colors">
+        <span className="material-symbols-rounded text-slate-200 group-hover:text-primary text-3xl transition-colors">
           add
         </span>
       </div>
       <div className="text-center">
-        <p className="text-slate-400 group-hover:text-slate-300 font-medium">
+        <p className="text-slate-200 group-hover:text-white font-medium">
           Araç Ekle
         </p>
-        <p className="text-xs text-slate-500">Yeni rota oluştur</p>
+        <p className="text-xs text-slate-300">Yeni rota oluştur</p>
       </div>
     </div>
   );

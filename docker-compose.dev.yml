@@ -1,0 +1,102 @@
+# Geliştirme ortamı için compose (hot reload aktif)
+# Kullanım: docker compose -f docker-compose.dev.yml up -d
+
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: kargo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - kargo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kargo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./apps/api/.env
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      # Use local DB in dev to avoid slow/unstable remote connections
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/kargo?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@db:5432/kargo?schema=public
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      OPTIMIZER_URL: http://optimizer:5000
+      OSRM_URL: http://osrm:5000
+      CORS_ORIGIN: http://localhost:3000
+      LOG_FORMAT: ${LOG_FORMAT:-pretty}
+    command: sh -c "npx prisma migrate deploy && node prisma/seed.js && node dist/main"
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http=require('http');const r=http.request({hostname:'127.0.0.1',port:3001,path:'/api/health/ready',timeout:2000},res=>process.exit(res.statusCode===200?0:1));r.on('error',()=>process.exit(1));r.on('timeout',()=>process.exit(1));r.end();"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      db:
+        condition: service_healthy
+      optimizer:
+        condition: service_healthy
+      osrm:
+        condition: service_healthy
+
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "[ -d node_modules ] || npm install; npm run dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      WATCHPACK_POLLING: "true"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  optimizer:
+    build:
+      context: ./apps/optimizer
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: 5000
+      OSRM_URL: http://osrm:5000
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=2); sys.exit(0)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  osrm:
+    image: osrm/osrm-backend:latest
+    command: ["sh", "-c", "osrm-routed --algorithm mld ${OSRM_DATA:-/data/turkey-latest.osrm}"]
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./osrm-data:/data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "test -s ${OSRM_DATA:-/data/turkey-latest.osrm}"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  kargo-db-data:

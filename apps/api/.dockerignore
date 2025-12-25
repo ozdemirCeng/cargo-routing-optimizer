@@ -1,0 +1,20 @@
+node_modules
+npm-debug.log
+Dockerfile
+.dockerignore
+
+# Build outputs
+/dist
+
+# Local env / misc
+.env
+.env.*
+
+# Prisma engine artifacts (generated per-platform)
+/node_modules/.prisma
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db

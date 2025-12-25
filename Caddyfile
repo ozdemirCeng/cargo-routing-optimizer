@@ -1,0 +1,20 @@
+{
+  # Email is required for Let's Encrypt on public domains
+  email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+  encode zstd gzip
+
+  # API
+  handle_path /api/* {
+    reverse_proxy api:3001
+  }
+
+  # Swagger /docs under /api already; no extra rule needed
+
+  # Next.js web
+  handle {
+    reverse_proxy web:3000
+  }
+}

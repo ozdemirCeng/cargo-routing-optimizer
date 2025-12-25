@@ -15,6 +15,7 @@ import { RoutingModule } from './routing/routing.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ParametersModule } from './parameters/parameters.module';
 import { HealthModule } from './health/health.module';
+import { ScenariosModule } from './scenarios/scenarios.module';
 import { validateEnv } from './config/env.validation';
 
 @Module({
@@ -44,6 +45,7 @@ import { validateEnv } from './config/env.validation';
     DashboardModule,
     ParametersModule,
     HealthModule,
+    ScenariosModule,
   ],
   providers: [
     {

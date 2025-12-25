@@ -51,6 +51,50 @@ docker compose up -d
 docker compose logs -f
 ```
 
+## 🚢 Production (Önerilen)
+
+Bu proje için en stabil ve hızlı yayın senaryosu: **tek bir VPS + Docker Compose + local PostgreSQL + Caddy reverse proxy**.
+Bu sayede Web ve API aynı domainde çalışır (client istekleri ` /api ` ile gider) ve CORS/latency problemleri minimuma iner.
+
+### Gereksinimler
+
+- Bir domain (örn. `kargo.example.com`) ve DNS A kaydı sunucu IP’sine yönlendirilmiş
+- VPS (öneri: 4 vCPU / 8 GB RAM / 80+ GB disk; OSRM datası disk ister)
+- Sunucuda Docker + Docker Compose
+
+### Kurulum
+
+1) Sunucuda ortam değişkenlerini ayarla:
+
+```bash
+export DOMAIN=kargo.example.com
+export ACME_EMAIL=you@example.com
+export POSTGRES_PASSWORD='strong_password_here'
+```
+
+2) API secret’larını deploy ortamında ver:
+
+- `JWT_SECRET` zorunlu
+- `DATABASE_URL` / `DIRECT_URL` prod compose içinde local Postgres’e bağlanacak şekilde zaten set ediliyor
+
+3) Servisleri başlat:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+4) İlk kurulumda seed (opsiyonel):
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm api node prisma/seed.js
+```
+
+### URL’ler
+
+- Web: `https://$DOMAIN`
+- API: `https://$DOMAIN/api`
+- Swagger: `https://$DOMAIN/api/docs`
+
 OSRM için Türkiye verisini indirip OSRM datasını üretme adımları:
 - [docs/OSRM.md](docs/OSRM.md)
 

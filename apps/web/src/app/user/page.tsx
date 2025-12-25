@@ -49,7 +49,7 @@ export default function UserDashboard() {
     <div className="h-full flex flex-col gap-4 overflow-hidden">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-shrink-0">
-        <div className="glass rounded-2xl p-5 flex items-center gap-4">
+        <div className="glass-dark rounded-2xl p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
             <span className="material-symbols-rounded text-emerald-400 text-2xl">
               inventory_2
@@ -59,10 +59,10 @@ export default function UserDashboard() {
             <p className="text-2xl font-bold text-white">
               {cargos?.length || 0}
             </p>
-            <p className="text-sm text-slate-300">Toplam Kargo</p>
+            <p className="text-sm text-slate-200">Toplam Kargo</p>
           </div>
         </div>
-        <div className="glass rounded-2xl p-5 flex items-center gap-4">
+        <div className="glass-dark rounded-2xl p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
             <span className="material-symbols-rounded text-amber-400 text-2xl">
               schedule
@@ -72,10 +72,10 @@ export default function UserDashboard() {
             <p className="text-2xl font-bold text-white">
               {cargos?.filter((c: any) => c.status === "pending").length || 0}
             </p>
-            <p className="text-sm text-slate-300">Bekleyen</p>
+            <p className="text-sm text-slate-200">Bekleyen</p>
           </div>
         </div>
-        <div className="glass rounded-2xl p-5 flex items-center gap-4">
+        <div className="glass-dark rounded-2xl p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
             <span className="material-symbols-rounded text-purple-400 text-2xl">
               local_shipping
@@ -86,10 +86,10 @@ export default function UserDashboard() {
               {cargos?.filter((c: any) => c.status === "in_transit").length ||
                 0}
             </p>
-            <p className="text-sm text-slate-300">Yolda</p>
+            <p className="text-sm text-slate-200">Yolda</p>
           </div>
         </div>
-        <div className="glass rounded-2xl p-5 flex items-center gap-4">
+        <div className="glass-dark rounded-2xl p-5 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
             <span className="material-symbols-rounded text-emerald-400 text-2xl">
               check_circle
@@ -99,18 +99,18 @@ export default function UserDashboard() {
             <p className="text-2xl font-bold text-white">
               {cargos?.filter((c: any) => c.status === "delivered").length || 0}
             </p>
-            <p className="text-sm text-slate-300">Teslim Edildi</p>
+            <p className="text-sm text-slate-200">Teslim Edildi</p>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 glass rounded-2xl overflow-hidden flex flex-col">
+      <div className="flex-1 glass-dark rounded-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-slate-700/50 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-white">Kargolarım</h1>
-            <p className="text-sm text-slate-300 mt-1">
+            <p className="text-sm text-slate-200 mt-1">
               Tüm kargo siparişlerinizi buradan takip edebilirsiniz
             </p>
           </div>
@@ -121,14 +121,14 @@ export default function UserDashboard() {
           {cargos?.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <div className="w-20 h-20 rounded-full bg-slate-800/50 flex items-center justify-center mb-4">
-                <span className="material-symbols-rounded text-4xl text-slate-500">
+                <span className="material-symbols-rounded text-4xl text-slate-300">
                   package_2
                 </span>
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">
                 Henüz kargonuz bulunmuyor
               </h3>
-              <p className="text-slate-300 mb-6 max-w-sm">
+              <p className="text-slate-200 mb-6 max-w-sm">
                 İlk kargo talebinizi oluşturmak için aşağıdaki butona tıklayın
               </p>
               <Link
