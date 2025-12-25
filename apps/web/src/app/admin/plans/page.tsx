@@ -96,6 +96,14 @@ export default function PlansPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: plansApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
+      setSelectedPlan(null);
+    },
+  });
+
   // Find plan for selected date
   const todayPlan = useMemo(() => {
     return plans?.find((p: Plan) => p.planDate.split("T")[0] === selectedDate);
@@ -409,12 +417,14 @@ export default function PlansPage() {
           </div>
           <div className="max-h-[300px] overflow-y-auto glass-scroll">
             {plans.slice(0, 5).map((plan: Plan) => (
-              <button
+              <div
                 key={plan.id}
-                onClick={() => setSelectedPlan(plan)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0"
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0 group"
               >
-                <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSelectedPlan(plan)}
+                  className="flex items-center gap-3 flex-1"
+                >
                   <div
                     className={`w-2 h-2 rounded-full ${
                       plan.status === "active"
@@ -434,11 +444,29 @@ export default function PlansPage() {
                       {plan.vehiclesUsed} araç • {plan.totalCargos} kargo
                     </p>
                   </div>
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-slate-400">
+                    ₺{Number(plan.totalCost).toFixed(0)}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (
+                        confirm("Bu planı silmek istediğinize emin misiniz?")
+                      ) {
+                        deleteMutation.mutate(plan.id);
+                      }
+                    }}
+                    className="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                    title="Planı Sil"
+                  >
+                    <span className="material-symbols-rounded text-[18px]">
+                      delete
+                    </span>
+                  </button>
                 </div>
-                <span className="text-xs font-mono text-slate-400">
-                  ₺{Number(plan.totalCost).toFixed(0)}
-                </span>
-              </button>
+              </div>
             ))}
           </div>
         </div>

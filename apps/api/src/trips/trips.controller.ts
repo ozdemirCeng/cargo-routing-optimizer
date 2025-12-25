@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, Query, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Query,
+  Body,
+  UseGuards,
+} from "@nestjs/common";
 import {
   ApiTags,
   ApiBearerAuth,
@@ -60,5 +69,16 @@ export class TripsController {
   @ApiOperation({ summary: "Seferi tamamla" })
   async complete(@Param("id") id: string) {
     return this.tripsService.complete(id);
+  }
+
+  @Patch(":id/status")
+  @UseGuards(RolesGuard)
+  @Roles("admin")
+  @ApiOperation({ summary: "Sefer durumunu güncelle" })
+  async updateStatus(
+    @Param("id") id: string,
+    @Body() body: { status: string }
+  ) {
+    return this.tripsService.updateStatus(id, body.status);
   }
 }

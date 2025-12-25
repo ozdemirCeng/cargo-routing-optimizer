@@ -2,9 +2,11 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateCargoDto } from "./dto/create-cargo.dto";
+import { LoadScenarioDto } from "./dto/load-scenario.dto";
 
 @Injectable()
 export class CargosService {
@@ -205,5 +207,190 @@ export class CargosService {
       where: { id },
       data: { status: status as any },
     });
+  }
+
+  // Senaryo verilerini yükle - toplu kargo oluşturma
+  async loadScenario(data: LoadScenarioDto, userId: string) {
+    const {
+      scenarioId,
+      scenarioName,
+      scheduledDate,
+      data: scenarioData,
+      clearExisting,
+    } = data;
+
+    // İstasyonları bul
+    const stationCodes = scenarioData.map((item) => item.stationCode);
+    const stations = await this.prisma.station.findMany({
+      where: { code: { in: stationCodes }, isActive: true },
+    });
+
+    const stationMap = new Map(stations.map((s) => [s.code, s]));
+
+    // Eksik istasyonları kontrol et
+    const missingCodes = stationCodes.filter((code) => !stationMap.has(code));
+    if (missingCodes.length > 0) {
+      throw new BadRequestException(
+        `İstasyonlar bulunamadı: ${missingCodes.join(", ")}`
+      );
+    }
+
+    // Hub'u bul (destination)
+    const hub = await this.prisma.station.findFirst({
+      where: { isHub: true, isActive: true },
+    });
+
+    if (!hub) {
+      throw new BadRequestException("Merkez depo (hub) bulunamadı");
+    }
+
+    const scheduledDateObj = new Date(scheduledDate);
+
+    // Mevcut kargoları temizle (isteğe bağlı)
+    if (clearExisting) {
+      await this.prisma.cargo.deleteMany({
+        where: {
+          scheduledDate: {
+            gte: new Date(scheduledDateObj.setHours(0, 0, 0, 0)),
+            lt: new Date(scheduledDateObj.setHours(23, 59, 59, 999)),
+          },
+          status: "pending", // Sadece bekleyen kargoları sil
+        },
+      });
+    }
+
+    // Kargoları oluştur
+    const cargosToCreate: any[] = [];
+
+    for (const item of scenarioData) {
+      const station = stationMap.get(item.stationCode)!;
+      const weightPerCargo = item.weight / item.count;
+
+      for (let i = 0; i < item.count; i++) {
+        cargosToCreate.push({
+          trackingCode: this.generateTrackingCode(),
+          userId,
+          originStationId: station.id,
+          destinationStationId: hub.id,
+          weightKg: parseFloat(weightPerCargo.toFixed(2)),
+          description: `${scenarioName} - ${station.name} #${i + 1}`,
+          scheduledDate: new Date(scheduledDate),
+          status: "pending",
+        });
+      }
+    }
+
+    // Toplu oluşturma
+    const result = await this.prisma.cargo.createMany({
+      data: cargosToCreate,
+    });
+
+    // İstatistikleri hesapla
+    const totalWeight = scenarioData.reduce(
+      (sum, item) => sum + item.weight,
+      0
+    );
+    const totalCargos = scenarioData.reduce((sum, item) => sum + item.count, 0);
+
+    return {
+      success: true,
+      scenarioId,
+      scenarioName,
+      scheduledDate,
+      createdCount: result.count,
+      totalWeight,
+      totalCargos,
+      stationsUsed: scenarioData.length,
+    };
+  }
+
+  // Belirli tarihteki kargoların özet istatistiklerini getir
+  async getCargoSummaryByDate(date: string) {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    const cargos = await this.prisma.cargo.findMany({
+      where: {
+        scheduledDate: { gte: dayStart, lt: dayEnd },
+      },
+      include: {
+        originStation: true,
+      },
+    });
+
+    // İstasyon bazında gruplama
+    const byStation = cargos.reduce(
+      (acc, cargo) => {
+        const stationId = cargo.originStationId;
+        if (!acc[stationId]) {
+          acc[stationId] = {
+            stationId,
+            stationName: cargo.originStation.name,
+            stationCode: cargo.originStation.code,
+            count: 0,
+            totalWeight: 0,
+          };
+        }
+        acc[stationId].count++;
+        acc[stationId].totalWeight += Number(cargo.weightKg);
+        return acc;
+      },
+      {} as Record<string, any>
+    );
+
+    return {
+      date,
+      totalCargos: cargos.length,
+      totalWeight: cargos.reduce((sum, c) => sum + Number(c.weightKg), 0),
+      byStation: Object.values(byStation),
+    };
+  }
+
+  // Belirli tarihteki bekleyen kargoları sil
+  async clearCargosByDate(date: string) {
+    const dayStart = new Date(date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    // Sadece pending (bekleyen) kargoları sil - assigned, in_transit, delivered olanları silme
+    const result = await this.prisma.cargo.deleteMany({
+      where: {
+        scheduledDate: { gte: dayStart, lt: dayEnd },
+        status: "pending",
+      },
+    });
+
+    return {
+      success: true,
+      date,
+      deletedCount: result.count,
+    };
+  }
+
+  // Tekil kargo silme
+  async deleteCargo(id: string) {
+    const cargo = await this.prisma.cargo.findUnique({
+      where: { id },
+    });
+
+    if (!cargo) {
+      throw new NotFoundException("Kargo bulunamadı");
+    }
+
+    // Sadece pending veya cancelled durumundaki kargolar silinebilir
+    if (cargo.status !== "pending" && cargo.status !== "cancelled") {
+      throw new BadRequestException(
+        "Sadece bekleyen veya iptal edilmiş kargolar silinebilir"
+      );
+    }
+
+    await this.prisma.cargo.delete({
+      where: { id },
+    });
+
+    return { success: true, id };
   }
 }

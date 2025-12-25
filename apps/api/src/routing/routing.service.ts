@@ -5,13 +5,13 @@ import {
   NotFoundException,
   GatewayTimeoutException,
   BadGatewayException,
-} from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
-import { firstValueFrom } from 'rxjs';
-import { getRequestId } from '../common/request-context';
-import type { AxiosError } from 'axios';
+} from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../prisma/prisma.service";
+import { firstValueFrom } from "rxjs";
+import { getRequestId } from "../common/request-context";
+import type { AxiosError } from "axios";
 
 type OsrmRouteResponse = {
   code: string;
@@ -35,11 +35,14 @@ export class RoutingService {
   constructor(
     private prisma: PrismaService,
     private httpService: HttpService,
-    private configService: ConfigService,
+    private configService: ConfigService
   ) {
-    this.osrmUrl = this.configService.get<string>('OSRM_URL') || 'http://localhost:5001';
-    this.allowHaversineFallback = this.configService.get<boolean>('ALLOW_HAVERSINE_FALLBACK') === true;
-    this.osrmTimeoutMs = this.configService.get<number>('OSRM_TIMEOUT_MS') || 8000;
+    this.osrmUrl =
+      this.configService.get<string>("OSRM_URL") || "http://localhost:5001";
+    this.allowHaversineFallback =
+      this.configService.get<boolean>("ALLOW_HAVERSINE_FALLBACK") === true;
+    this.osrmTimeoutMs =
+      this.configService.get<number>("OSRM_TIMEOUT_MS") || 8000;
   }
 
   // İki istasyon arası mesafe ve polyline
@@ -66,7 +69,7 @@ export class RoutingService {
     ]);
 
     if (!fromStation || !toStation) {
-      throw new NotFoundException('Station not found');
+      throw new NotFoundException("Station not found");
     }
 
     // OSRM'den hesapla
@@ -74,14 +77,22 @@ export class RoutingService {
       Number(fromStation.longitude),
       Number(fromStation.latitude),
       Number(toStation.longitude),
-      Number(toStation.latitude),
+      Number(toStation.latitude)
     );
 
-    // Cache'e kaydet
-    await this.prisma.distanceMatrix.create({
-      data: {
+    // Cache'e kaydet (upsert - zaten varsa güncelle)
+    await this.prisma.distanceMatrix.upsert({
+      where: {
+        fromStationId_toStationId: { fromStationId, toStationId },
+      },
+      create: {
         fromStationId,
         toStationId,
+        distanceKm: result.distance_km,
+        durationMinutes: result.duration_minutes,
+        polyline: result.polyline,
+      },
+      update: {
         distanceKm: result.distance_km,
         durationMinutes: result.duration_minutes,
         polyline: result.polyline,
@@ -96,21 +107,25 @@ export class RoutingService {
     fromLon: number,
     fromLat: number,
     toLon: number,
-    toLat: number,
-  ): Promise<{ distance_km: number; duration_minutes: number; polyline: string }> {
+    toLat: number
+  ): Promise<{
+    distance_km: number;
+    duration_minutes: number;
+    polyline: string;
+  }> {
     try {
       const requestId = getRequestId();
       const url = `${this.osrmUrl}/route/v1/driving/${fromLon},${fromLat};${toLon},${toLat}?overview=full&geometries=polyline`;
       const response = await firstValueFrom(
         this.httpService.get<OsrmRouteResponse>(url, {
           timeout: this.osrmTimeoutMs,
-          headers: requestId ? { 'x-request-id': requestId } : undefined,
-        }),
+          headers: requestId ? { "x-request-id": requestId } : undefined,
+        })
       );
       const data = response.data;
 
-      if (data.code !== 'Ok' || !data.routes?.length) {
-        throw new Error('OSRM routing failed');
+      if (data.code !== "Ok" || !data.routes?.length) {
+        throw new Error("OSRM routing failed");
       }
 
       const route = data.routes[0];
@@ -123,21 +138,26 @@ export class RoutingService {
       const axiosError = error as AxiosError<any>;
       const status = axiosError.response?.status;
       const code = (axiosError as any)?.code as string | undefined;
-      const message = axiosError.message || (error instanceof Error ? error.message : String(error));
+      const message =
+        axiosError.message ||
+        (error instanceof Error ? error.message : String(error));
 
-      this.logger.error('OSRM error', axiosError.response?.data || { status, code, message });
+      this.logger.error(
+        "OSRM error",
+        axiosError.response?.data || { status, code, message }
+      );
 
-      if (code === 'ECONNABORTED') {
-        throw new GatewayTimeoutException('OSRM zaman aşımına uğradı');
+      if (code === "ECONNABORTED") {
+        throw new GatewayTimeoutException("OSRM zaman aşımına uğradı");
       }
 
       if (status && status >= 500) {
-        throw new BadGatewayException('OSRM servis hatası');
+        throw new BadGatewayException("OSRM servis hatası");
       }
 
       if (!this.allowHaversineFallback) {
         throw new ServiceUnavailableException(
-          'OSRM servisinden rota hesaplanamadı. Lütfen OSRM_URL ayarını ve OSRM servisinin çalıştığını kontrol edin.',
+          "OSRM servisinden rota hesaplanamadı. Lütfen OSRM_URL ayarını ve OSRM servisinin çalıştığını kontrol edin."
         );
       }
 
@@ -146,7 +166,7 @@ export class RoutingService {
       return {
         distance_km: distance * 1.3,
         duration_minutes: ((distance * 1.3) / 50) * 60,
-        polyline: '',
+        polyline: "",
       };
     }
   }
@@ -164,7 +184,7 @@ export class RoutingService {
       const found = new Set(stations.map((s) => s.id));
       const missing = stationIds.filter((id) => !found.has(id));
       throw new ServiceUnavailableException(
-        `Distance matrix oluşturulamadı: bazı istasyonlar bulunamadı (${missing.join(', ')})`,
+        `Distance matrix oluşturulamadı: bazı istasyonlar bulunamadı (${missing.join(", ")})`
       );
     }
 
@@ -188,7 +208,7 @@ export class RoutingService {
           const distance = await this.getDistance(pair.fromId, pair.toId);
           matrix[pair.key] = distance;
         }
-      },
+      }
     );
 
     await Promise.all(workers);
@@ -210,11 +230,16 @@ export class RoutingService {
     const stationIds = stations.map((s) => s.id);
     await this.getDistanceMatrix(stationIds);
 
-    return { message: 'Cache refreshed', stationCount: stations.length };
+    return { message: "Cache refreshed", stationCount: stations.length };
   }
 
   // Haversine mesafe formülü
-  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private haversineDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number {
     const R = 6371; // km
     const dLat = this.deg2rad(lat2 - lat1);
     const dLon = this.deg2rad(lon2 - lon1);

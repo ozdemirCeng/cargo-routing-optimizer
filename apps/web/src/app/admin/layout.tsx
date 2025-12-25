@@ -10,6 +10,7 @@ const adminMenuItems = [
   { text: "Geospatial Hub", icon: "map", path: "/admin/stations" },
   { text: "Araçlar", icon: "directions_car", path: "/admin/vehicles" },
   { text: "Kargo Siparişleri", icon: "inventory_2", path: "/admin/cargos" },
+  { text: "Senaryolar", icon: "science", path: "/admin/scenarios" },
   { text: "Rota Planlama", icon: "alt_route", path: "/admin/plans" },
   { text: "Seferler", icon: "local_shipping", path: "/admin/trips" },
   { text: "Parametreler", icon: "tune", path: "/admin/parameters" },

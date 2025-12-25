@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateVehicleDto } from "./dto/create-vehicle.dto";
 
@@ -34,6 +38,16 @@ export class VehiclesService {
   }
 
   async create(data: CreateVehicleDto) {
+    // Plaka kontrolü
+    const existing = await this.prisma.vehicle.findUnique({
+      where: { plateNumber: data.plateNumber },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Bu plaka zaten kayıtlı: ${data.plateNumber}`
+      );
+    }
+
     return this.prisma.vehicle.create({
       data: {
         plateNumber: data.plateNumber,
@@ -64,9 +78,32 @@ export class VehiclesService {
 
   async update(id: string, data: Partial<CreateVehicleDto>) {
     await this.findById(id);
+
+    // Eğer plaka değiştiriliyorsa, başka bir araçta kullanılıp kullanılmadığını kontrol et
+    if (data.plateNumber) {
+      const existing = await this.prisma.vehicle.findFirst({
+        where: {
+          plateNumber: data.plateNumber,
+          id: { not: id }, // Kendi ID'si hariç
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Bu plaka zaten başka bir araçta kayıtlı: ${data.plateNumber}`
+        );
+      }
+    }
+
     return this.prisma.vehicle.update({
       where: { id },
       data: data as any,
+    });
+  }
+
+  async delete(id: string) {
+    await this.findById(id);
+    return this.prisma.vehicle.delete({
+      where: { id },
     });
   }
 }

@@ -34,6 +34,7 @@ export default function VehiclesPage() {
     capacityKg: "",
     isActive: true,
   });
+  const [error, setError] = useState<string | null>(null);
 
   const { data: vehicles, isLoading } = useQuery({
     queryKey: ["vehicles"],
@@ -45,6 +46,11 @@ export default function VehiclesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
       handleCloseDialog();
+    },
+    onError: (err: any) => {
+      setError(
+        err.response?.data?.message || "Araç oluşturulurken bir hata oluştu"
+      );
     },
   });
 
@@ -64,6 +70,11 @@ export default function VehiclesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
       handleCloseDialog();
+    },
+    onError: (err: any) => {
+      setError(
+        err.response?.data?.message || "Araç güncellenirken bir hata oluştu"
+      );
     },
   });
 
@@ -126,6 +137,7 @@ export default function VehiclesPage() {
     setDialogOpen(false);
     setEditingVehicle(null);
     setFormData({ plateNumber: "", name: "", capacityKg: "", isActive: true });
+    setError(null);
   };
 
   const handleSubmit = () => {
@@ -535,15 +547,11 @@ export default function VehiclesPage() {
 
             <div className="p-6 space-y-5 bg-slate-900/40">
               {/* Error Message */}
-              {(createMutation.isError || updateMutation.isError) && (
+              {error && (
                 <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30">
                   <div className="flex items-center gap-3 text-red-400">
                     <span className="material-symbols-rounded">error</span>
-                    <span>
-                      {(createMutation.error as Error)?.message ||
-                        (updateMutation.error as Error)?.message ||
-                        "İşlem sırasında hata oluştu"}
-                    </span>
+                    <span>{error}</span>
                   </div>
                 </div>
               )}

@@ -185,4 +185,12 @@ export class TripsService {
       },
     });
   }
+
+  async updateStatus(id: string, status: string) {
+    await this.findById(id);
+    return this.prisma.trip.update({
+      where: { id },
+      data: { status: status as any },
+    });
+  }
 }
