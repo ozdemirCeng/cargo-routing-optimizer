@@ -10,7 +10,10 @@ export default function UserDashboard() {
 
   const { data: cargos, isLoading } = useQuery({
     queryKey: ["my-cargos"],
-    queryFn: () => cargosApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      cargosApi
+        .getAll()
+        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
   });
 
   const statusLabels: Record<string, string> = {

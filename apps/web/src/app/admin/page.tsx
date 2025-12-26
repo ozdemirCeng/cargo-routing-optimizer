@@ -338,14 +338,15 @@ export default function AdminDashboard() {
         },
       ];
     }
-    return (
-      costAnalysis.scenarios?.map((s: any, idx: number) => ({
-        label: s.name || `Senaryo ${idx + 1}`,
-        sublabel: s.type || "Model",
-        value: s.cost || 0,
-        highlight: s.isCurrent || idx === costAnalysis.scenarios.length - 1,
-      })) || []
-    );
+    const scenarios = Array.isArray((costAnalysis as any)?.scenarios)
+      ? ((costAnalysis as any).scenarios as any[])
+      : [];
+    return scenarios.map((s: any, idx: number) => ({
+      label: s.name || `Senaryo ${idx + 1}`,
+      sublabel: s.type || "Model",
+      value: s.cost || 0,
+      highlight: s.isCurrent || idx === scenarios.length - 1,
+    }));
   }, [costAnalysis, stats.totalCost]);
 
   // Donut chart segments

@@ -60,7 +60,10 @@ export default function TripsPage() {
 
   const { data: vehicles } = useQuery({
     queryKey: ["vehicles"],
-    queryFn: () => vehiclesApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      vehiclesApi
+        .getAll()
+        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
   });
 
   const {
@@ -69,7 +72,10 @@ export default function TripsPage() {
     refetch,
   } = useQuery({
     queryKey: ["trips", filters],
-    queryFn: () => tripsApi.getAll(filters).then((r) => r.data),
+    queryFn: () =>
+      tripsApi
+        .getAll(filters)
+        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
   });
 
   const updateStatusMutation = useMutation({

@@ -75,17 +75,26 @@ export default function PlansPage() {
   // Queries
   const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ["plans"],
-    queryFn: () => plansApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      plansApi
+        .getAll()
+        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
   });
 
   const { data: stationSummary } = useQuery({
     queryKey: ["station-summary", selectedDate],
-    queryFn: () => stationsApi.getSummary(selectedDate).then((r) => r.data),
+    queryFn: () =>
+      stationsApi
+        .getSummary(selectedDate)
+        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
   });
 
   const { data: vehicles } = useQuery({
     queryKey: ["vehicles"],
-    queryFn: () => vehiclesApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      vehiclesApi
+        .getAll()
+        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
   });
 
   // Mutations

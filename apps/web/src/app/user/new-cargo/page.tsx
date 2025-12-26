@@ -57,14 +57,20 @@ export default function NewCargoPage() {
 
   const { data: stations, isLoading: stationsLoading } = useQuery({
     queryKey: ["stations"],
-    queryFn: () => stationsApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      stationsApi
+        .getAll()
+        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
   });
 
   // Seçili tarih için istasyon özet bilgilerini çek (gerçek doluluk verileri)
   const scheduledDateStr = formData.scheduledDate || tomorrowStr;
   const { data: stationSummary } = useQuery({
     queryKey: ["station-summary", scheduledDateStr],
-    queryFn: () => stationsApi.getSummary(scheduledDateStr).then((r) => r.data),
+    queryFn: () =>
+      stationsApi
+        .getSummary(scheduledDateStr)
+        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
     enabled: !!scheduledDateStr,
   });
 
@@ -87,7 +93,7 @@ export default function NewCargoPage() {
 
   // Hub olmayan istasyonları filtrele
   const availableStations = useMemo(
-    () => (stations?.filter((s: Station) => !s.isHub) || []) as Station[],
+    () => (Array.isArray(stations) ? stations.filter((s: Station) => !s.isHub) : []),
     [stations]
   );
 

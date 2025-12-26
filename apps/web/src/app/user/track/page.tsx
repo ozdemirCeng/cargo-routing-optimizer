@@ -58,8 +58,11 @@ function TrackCargoContent() {
   const activeStep = statusSteps.indexOf(cargo?.status || "pending");
 
   // Harita verileri
+  const routeStations = Array.isArray((route as any)?.stations)
+    ? ((route as any).stations as any[])
+    : [];
   const mapStations =
-    route?.stations?.map((s: any) => ({
+    routeStations.map((s: any) => ({
       id: s.id,
       name: s.name,
       code: s.code || "",
