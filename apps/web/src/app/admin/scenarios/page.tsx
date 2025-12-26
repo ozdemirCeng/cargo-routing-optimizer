@@ -1,29 +1,128 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { cargosApi, stationsApi } from "@/lib/api";
+import { cargosApi, stationsApi, vehiclesApi } from "@/lib/api";
 import { scenarios, stationCodeMap, Scenario } from "@/lib/scenarios";
 import Link from "next/link";
 
+const SCENARIOS_STORAGE_KEY = "kargo.admin.scenarios.v1";
+
+const calculateTotals = (data: Scenario["data"]) => {
+  return data.reduce(
+    (acc, item) => ({
+      totalCargos: acc.totalCargos + (Number(item.count) || 0),
+      totalWeight: acc.totalWeight + (Number(item.weight) || 0),
+    }),
+    { totalCargos: 0, totalWeight: 0 }
+  );
+};
+
+const normalizeScenarios = (value: unknown): Scenario[] | null => {
+  if (!Array.isArray(value)) return null;
+  const parsed: Scenario[] = [];
+
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const s = item as any;
+
+    if (typeof s.id !== "string" || typeof s.name !== "string") continue;
+
+    const data = Array.isArray(s.data)
+      ? s.data
+          .filter((x: any) => x && typeof x === "object")
+          .map((x: any) => ({
+            station: String(x.station ?? ""),
+            count: Number(x.count ?? 0),
+            weight: Number(x.weight ?? 0),
+          }))
+      : [];
+
+    const totals = calculateTotals(data);
+    parsed.push({
+      id: s.id,
+      name: s.name,
+      description: typeof s.description === "string" ? s.description : "",
+      data,
+      totalCargos: totals.totalCargos,
+      totalWeight: totals.totalWeight,
+    });
+  }
+
+  return parsed.length > 0 ? parsed : null;
+};
+
 export default function ScenariosPage() {
   const queryClient = useQueryClient();
-  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(
+  const [scenarioList, setScenarioList] = useState<Scenario[]>(scenarios);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(
     null
   );
   const [selectedDate, setSelectedDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split("T")[0];
+    const yyyy = tomorrow.getFullYear();
+    const mm = String(tomorrow.getMonth() + 1).padStart(2, "0");
+    const dd = String(tomorrow.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
   });
   const [clearExisting, setClearExisting] = useState(true);
   const [loadResult, setLoadResult] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SCENARIOS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = normalizeScenarios(JSON.parse(raw));
+      if (parsed) setScenarioList(parsed);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SCENARIOS_STORAGE_KEY, JSON.stringify(scenarioList));
+    } catch {
+      // ignore
+    }
+  }, [scenarioList]);
+
+  const selectedScenario = useMemo(() => {
+    if (!selectedScenarioId) return null;
+    return scenarioList.find((s) => s.id === selectedScenarioId) ?? null;
+  }, [scenarioList, selectedScenarioId]);
 
   // Stations query
   const { data: stationsData } = useQuery({
     queryKey: ["stations"],
     queryFn: () => stationsApi.getAll(),
   });
+
+  const { data: vehiclesData } = useQuery({
+    queryKey: ["vehicles"],
+    queryFn: () =>
+      vehiclesApi
+        .getAll()
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
+  });
+
+  const vehiclesList = useMemo(() => {
+    return Array.isArray(vehiclesData) ? vehiclesData : [];
+  }, [vehiclesData]);
+
+  const totalCapacityKg = useMemo(() => {
+    return vehiclesList.reduce((sum: number, v: any) => {
+      const cap = Number(v?.capacityKg ?? v?.capacity_kg ?? 0);
+      return sum + (Number.isFinite(cap) ? cap : 0);
+    }, 0);
+  }, [vehiclesList]);
 
   // Get cargo summary for selected date
   const { data: summaryData, refetch: refetchSummary } = useQuery({
@@ -39,6 +138,8 @@ export default function ScenariosPage() {
       setLoadResult(response.data);
       queryClient.invalidateQueries({ queryKey: ["cargos"] });
       queryClient.invalidateQueries({ queryKey: ["cargo-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["station-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
       refetchSummary();
     },
     onError: (error: any) => {
@@ -61,6 +162,8 @@ export default function ScenariosPage() {
       });
       queryClient.invalidateQueries({ queryKey: ["cargos"] });
       queryClient.invalidateQueries({ queryKey: ["cargo-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["station-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["plans"] });
       refetchSummary();
     },
     onError: (error: any) => {
@@ -74,7 +177,7 @@ export default function ScenariosPage() {
   const handleClearCargos = () => {
     if (
       confirm(
-        `${selectedDate} tarihindeki tüm bekleyen kargolar silinecek. Emin misiniz?`
+        `${selectedDate} tarihindeki tüm bekleyen kargolar (taslak plandaki atanmış kargolar dahil) silinecek. Emin misiniz?`
       )
     ) {
       clearMutation.mutate(selectedDate);
@@ -100,6 +203,15 @@ export default function ScenariosPage() {
   };
 
   const summary = summaryData?.data;
+
+  const updateSelectedScenario = (
+    updater: (scenario: Scenario) => Scenario
+  ) => {
+    if (!selectedScenarioId) return;
+    setScenarioList((prev) =>
+      prev.map((s) => (s.id === selectedScenarioId ? updater(s) : s))
+    );
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -161,10 +273,10 @@ export default function ScenariosPage() {
 
           {/* Senaryo Kartları */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {scenarios.map((scenario) => (
+            {scenarioList.map((scenario) => (
               <div
                 key={scenario.id}
-                onClick={() => setSelectedScenario(scenario)}
+                onClick={() => setSelectedScenarioId(scenario.id)}
                 className={`glass-panel p-5 rounded-xl cursor-pointer transition-all duration-300 ${
                   selectedScenario?.id === scenario.id
                     ? "border-2 border-primary shadow-lg shadow-primary/20"
@@ -296,25 +408,190 @@ export default function ScenariosPage() {
                 <span className="material-symbols-rounded text-amber-400">
                   inventory_2
                 </span>
-                {selectedScenario.name} Detayları
+                Senaryo Düzenle
               </h3>
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {selectedScenario.data.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between py-2 px-3 bg-slate-800/30 rounded-lg"
-                  >
-                    <span className="text-slate-300 text-sm">
-                      {item.station}
-                    </span>
-                    <div className="flex gap-4 text-sm">
-                      <span className="text-white font-medium">
-                        {item.count} kargo
-                      </span>
-                      <span className="text-slate-400">{item.weight} kg</span>
-                    </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold text-sm mb-2">
+                      Senaryo Adı
+                    </label>
+                    <input
+                      value={selectedScenario.name}
+                      onChange={(e) =>
+                        updateSelectedScenario((s) => ({
+                          ...s,
+                          name: e.target.value,
+                        }))
+                      }
+                      className="glass-input w-full px-4 py-3 rounded-lg text-white"
+                    />
                   </div>
-                ))}
+                  <div>
+                    <label className="block text-slate-300 font-semibold text-sm mb-2">
+                      Açıklama
+                    </label>
+                    <textarea
+                      value={selectedScenario.description}
+                      onChange={(e) =>
+                        updateSelectedScenario((s) => ({
+                          ...s,
+                          description: e.target.value,
+                        }))
+                      }
+                      rows={2}
+                      className="glass-input w-full px-4 py-3 rounded-lg text-white resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-slate-300 font-semibold">
+                    İstasyon Satırları
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateSelectedScenario((s) => {
+                        const nextData = [
+                          ...s.data,
+                          { station: "", count: 0, weight: 0 },
+                        ];
+                        const totals = calculateTotals(nextData);
+                        return {
+                          ...s,
+                          data: nextData,
+                          totalCargos: totals.totalCargos,
+                          totalWeight: totals.totalWeight,
+                        };
+                      })
+                    }
+                    className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 text-sm transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-rounded text-[18px]">
+                      add
+                    </span>
+                    Satır Ekle
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {selectedScenario.data.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-12 gap-2 items-center py-2 px-3 bg-slate-800/30 rounded-lg"
+                    >
+                      <div className="col-span-5">
+                        <input
+                          value={item.station}
+                          onChange={(e) =>
+                            updateSelectedScenario((s) => {
+                              const nextData = s.data.map((row, i) =>
+                                i === idx
+                                  ? { ...row, station: e.target.value }
+                                  : row
+                              );
+                              const totals = calculateTotals(nextData);
+                              return {
+                                ...s,
+                                data: nextData,
+                                totalCargos: totals.totalCargos,
+                                totalWeight: totals.totalWeight,
+                              };
+                            })
+                          }
+                          list="stations-datalist"
+                          placeholder="İstasyon (örn. Gebze)"
+                          className="glass-input w-full px-3 py-2 rounded-lg text-white text-sm"
+                        />
+                      </div>
+
+                      <div className="col-span-3">
+                        <input
+                          type="number"
+                          min={0}
+                          value={Number.isFinite(item.count) ? item.count : 0}
+                          onChange={(e) =>
+                            updateSelectedScenario((s) => {
+                              const nextData = s.data.map((row, i) =>
+                                i === idx
+                                  ? { ...row, count: Number(e.target.value) }
+                                  : row
+                              );
+                              const totals = calculateTotals(nextData);
+                              return {
+                                ...s,
+                                data: nextData,
+                                totalCargos: totals.totalCargos,
+                                totalWeight: totals.totalWeight,
+                              };
+                            })
+                          }
+                          className="glass-input w-full px-3 py-2 rounded-lg text-white text-sm"
+                        />
+                      </div>
+
+                      <div className="col-span-3">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          value={Number.isFinite(item.weight) ? item.weight : 0}
+                          onChange={(e) =>
+                            updateSelectedScenario((s) => {
+                              const nextData = s.data.map((row, i) =>
+                                i === idx
+                                  ? { ...row, weight: Number(e.target.value) }
+                                  : row
+                              );
+                              const totals = calculateTotals(nextData);
+                              return {
+                                ...s,
+                                data: nextData,
+                                totalCargos: totals.totalCargos,
+                                totalWeight: totals.totalWeight,
+                              };
+                            })
+                          }
+                          className="glass-input w-full px-3 py-2 rounded-lg text-white text-sm"
+                        />
+                      </div>
+
+                      <div className="col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSelectedScenario((s) => {
+                              const nextData = s.data.filter(
+                                (_row, i) => i !== idx
+                              );
+                              const totals = calculateTotals(nextData);
+                              return {
+                                ...s,
+                                data: nextData,
+                                totalCargos: totals.totalCargos,
+                                totalWeight: totals.totalWeight,
+                              };
+                            })
+                          }
+                          className="p-1 rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition-colors"
+                          title="Satırı Sil"
+                        >
+                          <span className="material-symbols-rounded text-[18px]">
+                            delete
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <datalist id="stations-datalist">
+                  {Object.keys(stationCodeMap).map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
               </div>
             </div>
           )}
@@ -407,36 +684,45 @@ export default function ScenariosPage() {
               Araç Kapasiteleri
             </h3>
             <div className="space-y-3">
-              <div className="flex justify-between items-center py-2 border-b border-white/5">
-                <span className="text-slate-400 text-sm">Araç 1</span>
-                <span className="text-white font-medium">500 kg</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-white/5">
-                <span className="text-slate-400 text-sm">Araç 2</span>
-                <span className="text-white font-medium">750 kg</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-white/5">
-                <span className="text-slate-400 text-sm">Araç 3</span>
-                <span className="text-white font-medium">1000 kg</span>
-              </div>
+              {vehiclesList.length > 0 ? (
+                vehiclesList.map((v: any) => (
+                  <div
+                    key={v.id}
+                    className="flex justify-between items-center py-2 border-b border-white/5"
+                  >
+                    <span className="text-slate-400 text-sm">
+                      {v?.name || v?.plateNumber || v?.plate_number || "Araç"}
+                    </span>
+                    <span className="text-white font-medium">
+                      {Number(v?.capacityKg ?? v?.capacity_kg ?? 0).toFixed(0)} kg
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-500 text-sm">
+                  Kapasite bilgisi için araç bulunamadı
+                </p>
+              )}
               <div className="flex justify-between items-center py-2 pt-3 border-t border-white/10">
                 <span className="text-slate-300 font-semibold">
                   Toplam Kapasite
                 </span>
-                <span className="text-primary font-bold">2250 kg</span>
+                <span className="text-primary font-bold">
+                  {totalCapacityKg.toFixed(0)} kg
+                </span>
               </div>
             </div>
             {selectedScenario && (
               <div className="mt-4 p-3 rounded-lg bg-slate-800/50">
                 <p className="text-xs text-slate-400 mb-1">Kapasite Durumu</p>
-                {selectedScenario.totalWeight <= 2250 ? (
+                {totalCapacityKg > 0 && selectedScenario.totalWeight <= totalCapacityKg ? (
                   <p className="text-emerald-400 text-sm">
                     ✓ Mevcut kapasiteye sığar
                   </p>
                 ) : (
                   <p className="text-amber-400 text-sm">
                     ⚠ Ek araç kiralama gerekebilir (+
-                    {(selectedScenario.totalWeight - 2250).toFixed(0)} kg)
+                    {(selectedScenario.totalWeight - totalCapacityKg).toFixed(0)} kg)
                   </p>
                 )}
               </div>

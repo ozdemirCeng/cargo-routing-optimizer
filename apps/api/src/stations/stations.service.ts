@@ -7,6 +7,21 @@ import { UpdateStationDto } from "./dto/update-station.dto";
 export class StationsService {
   constructor(private prisma: PrismaService) {}
 
+  private getLocalDayRange(date: string | Date) {
+    const baseDate =
+      typeof date === "string" ? new Date(`${date}T00:00:00`) : new Date(date);
+
+    if (Number.isNaN(baseDate.getTime())) {
+      throw new NotFoundException("Geçersiz tarih");
+    }
+
+    const dayStart = new Date(baseDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    return { dayStart, dayEnd };
+  }
+
   async findAll(activeOnly = true) {
     return this.prisma.station.findMany({
       where: activeOnly ? { isActive: true } : {},
@@ -61,11 +76,8 @@ export class StationsService {
   }
 
   // İstasyon bazlı kargo özeti (ertesi gün planlaması için)
-  async getStationSummary(date: Date) {
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+  async getStationSummary(date: string | Date) {
+    const { dayStart, dayEnd } = this.getLocalDayRange(date);
 
     const stations = await this.prisma.station.findMany({
       where: { isActive: true },

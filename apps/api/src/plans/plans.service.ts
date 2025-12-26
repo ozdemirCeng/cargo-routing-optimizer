@@ -108,8 +108,11 @@ export class PlansService {
   }
 
   async create(data: CreatePlanDto, userId: string) {
-    const planDateInput = new Date(data.planDate);
-    const planDate = new Date(planDateInput);
+    // Treat YYYY-MM-DD as a local calendar day (avoid UTC parsing shift).
+    const planDate = new Date(`${data.planDate}T00:00:00`);
+    if (Number.isNaN(planDate.getTime())) {
+      throw new BadRequestException("Geçersiz tarih");
+    }
     planDate.setHours(0, 0, 0, 0);
 
     const dayStart = new Date(planDate);
@@ -305,7 +308,10 @@ export class PlansService {
               ownership: "rented",
               capacityKg: 500,
               rentalCost,
-              isActive: true,
+              // These are plan-scoped rented vehicles. Keep them out of the
+              // general fleet/availability lists so they don't leak into other plans.
+              isActive: false,
+              status: "maintenance",
             },
             create: {
               id: vehicleId,
@@ -314,7 +320,8 @@ export class PlansService {
               ownership: "rented",
               capacityKg: 500,
               rentalCost,
-              isActive: true,
+              isActive: false,
+              status: "maintenance",
             },
           });
         }
@@ -436,6 +443,10 @@ export class PlansService {
   async delete(id: string) {
     const plan = await this.findById(id);
 
+    const rentedVehicleIds = (plan.routes || [])
+      .filter((r) => r.vehicle?.ownership === "rented")
+      .map((r) => r.vehicleId);
+
     // Başlamış seferler varsa silinmez
     const startedTrips = await this.prisma.trip.findMany({
       where: {
@@ -484,6 +495,19 @@ export class PlansService {
     await this.prisma.plan.delete({
       where: { id },
     });
+
+    // 6. Clean up plan-scoped rented vehicles that are no longer referenced
+    // by any plan route or trip.
+    if (rentedVehicleIds.length > 0) {
+      await this.prisma.vehicle.deleteMany({
+        where: {
+          id: { in: rentedVehicleIds },
+          ownership: "rented",
+          planRoutes: { none: {} },
+          trips: { none: {} },
+        },
+      });
+    }
 
     return { success: true, id };
   }

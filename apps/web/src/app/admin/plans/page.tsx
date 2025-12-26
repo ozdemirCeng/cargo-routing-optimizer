@@ -158,6 +158,8 @@ export default function PlansPage() {
     if (!selectedPlan?.routes) return [];
 
     return selectedPlan.routes.map((route, idx) => ({
+      // Prisma Decimal values often arrive as strings; normalize for calculations.
+      // (We keep original values on the plan object unchanged.)
       id: route.id,
       vehicleId: route.vehicleId,
       vehicleName: route.vehicle?.name || `Araç ${idx + 1}`,
@@ -165,10 +167,13 @@ export default function PlansPage() {
       color: ROUTE_COLORS[idx % ROUTE_COLORS.length],
       polyline: route.routePolyline,
       status: route.cargoCount > 0 ? ("active" as const) : ("idle" as const),
-      loadPercentage: route.vehicle?.capacityKg
-        ? Math.round((route.totalWeightKg / route.vehicle.capacityKg) * 100)
+      loadPercentage: Number(route.vehicle?.capacityKg)
+        ? Math.round(
+            (Number(route.totalWeightKg) / Number(route.vehicle?.capacityKg)) *
+              100
+          )
         : 0,
-      cost: route.totalCost,
+      cost: Number(route.totalCost) || 0,
       stops:
         route.routeDetails?.map((s, order) => ({
           order,
@@ -191,8 +196,10 @@ export default function PlansPage() {
     if (!selectedPlan?.routes) return [];
 
     return selectedPlan.routes.map((route, idx) => {
-      const loadPercentage = route.vehicle?.capacityKg
-        ? Math.round((route.totalWeightKg / route.vehicle.capacityKg) * 100)
+      const capacityKg = Number(route.vehicle?.capacityKg) || 0;
+      const totalWeightKg = Number(route.totalWeightKg) || 0;
+      const loadPercentage = capacityKg
+        ? Math.round((totalWeightKg / capacityKg) * 100)
         : 0;
 
       const firstStation = route.routeDetails?.[0]?.station_name || "";
@@ -222,16 +229,18 @@ export default function PlansPage() {
 
   // Calculate summary stats
   const stats = useMemo(() => {
+    const nonHub = Array.isArray(stationSummary)
+      ? stationSummary.filter((s: any) => !s?.isHub)
+      : [];
+
     const totalCargos =
-      stationSummary?.reduce((sum: number, s: any) => sum + s.cargoCount, 0) ||
+      nonHub.reduce((sum: number, s: any) => sum + (Number(s.cargoCount) || 0), 0) ||
       0;
     const totalWeight =
-      stationSummary?.reduce(
-        (sum: number, s: any) => sum + s.totalWeightKg,
-        0
-      ) || 0;
+      nonHub.reduce((sum: number, s: any) => sum + (Number(s.totalWeightKg) || 0), 0) ||
+      0;
     const activeStations =
-      stationSummary?.filter((s: any) => s.cargoCount > 0).length || 0;
+      nonHub.filter((s: any) => (Number(s.cargoCount) || 0) > 0).length || 0;
 
     return { totalCargos, totalWeight, activeStations };
   }, [stationSummary]);
@@ -497,7 +506,7 @@ export default function PlansPage() {
                         deleteMutation.mutate(plan.id);
                       }
                     }}
-                    className="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                    className="p-1 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-all"
                     title="Planı Sil"
                   >
                     <span className="material-symbols-rounded text-[18px]">
@@ -512,7 +521,7 @@ export default function PlansPage() {
       )}
 
       {/* Mission Control Panel (Bottom) */}
-      <section className="absolute bottom-6 left-6 right-6 h-[320px] z-30 flex flex-col bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <section className="absolute bottom-6 left-6 right-6 h-[260px] z-30 flex flex-col bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
         {/* Panel Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/5">
           <div className="flex items-center gap-3">

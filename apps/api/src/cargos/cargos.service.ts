@@ -12,6 +12,22 @@ import { LoadScenarioDto } from "./dto/load-scenario.dto";
 export class CargosService {
   constructor(private prisma: PrismaService) {}
 
+  private getLocalDayRange(date: string | Date) {
+    const baseDate =
+      typeof date === "string" ? new Date(`${date}T00:00:00`) : new Date(date);
+
+    if (Number.isNaN(baseDate.getTime())) {
+      throw new BadRequestException("Geçersiz tarih");
+    }
+
+    const dayStart = new Date(baseDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    return { dayStart, dayEnd };
+  }
+
   // Tracking code generator
   private generateTrackingCode(): string {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -42,10 +58,7 @@ export class CargosService {
       where.status = filters.status;
     }
     if (filters?.date) {
-      const dayStart = new Date(filters.date);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
+      const { dayStart, dayEnd } = this.getLocalDayRange(filters.date);
       where.scheduledDate = { gte: dayStart, lt: dayEnd };
     }
     if (filters?.stationId) {
@@ -111,6 +124,10 @@ export class CargosService {
       where: { isHub: true, isActive: true },
     });
 
+    const scheduledDateParsed = data.scheduledDate
+      ? this.getLocalDayRange(String(data.scheduledDate)).dayStart
+      : undefined;
+
     return this.prisma.cargo.create({
       data: {
         trackingCode: this.generateTrackingCode(),
@@ -119,9 +136,7 @@ export class CargosService {
         destinationStationId: hub?.id,
         weightKg: data.weightKg,
         description: data.description,
-        scheduledDate: data.scheduledDate
-          ? new Date(data.scheduledDate)
-          : undefined,
+        scheduledDate: scheduledDateParsed,
       },
       include: {
         originStation: true,
@@ -227,6 +242,19 @@ export class CargosService {
 
     const stationMap = new Map(stations.map((s) => [s.code, s]));
 
+    // Prevent scenarios from creating cargos at hub as an origin station.
+    // Planning logic excludes hub origins, which would look like 'missing stops'.
+    const hubOrigins = stations
+      .filter((s) => s.isHub && stationCodes.includes(s.code))
+      .map((s) => s.code);
+    if (hubOrigins.length > 0) {
+      throw new BadRequestException(
+        `Senaryo verisinde hub istasyonu kaynak olarak kullanılamaz: ${hubOrigins.join(
+          ", "
+        )}`
+      );
+    }
+
     // Eksik istasyonları kontrol et
     const missingCodes = stationCodes.filter((code) => !stationMap.has(code));
     if (missingCodes.length > 0) {
@@ -244,19 +272,14 @@ export class CargosService {
       throw new BadRequestException("Merkez depo (hub) bulunamadı");
     }
 
-    const scheduledDateObj = new Date(scheduledDate);
+    const { dayStart, dayEnd } = this.getLocalDayRange(scheduledDate);
 
     // Mevcut kargoları temizle (isteğe bağlı)
     if (clearExisting) {
-      await this.prisma.cargo.deleteMany({
-        where: {
-          scheduledDate: {
-            gte: new Date(scheduledDateObj.setHours(0, 0, 0, 0)),
-            lt: new Date(scheduledDateObj.setHours(23, 59, 59, 999)),
-          },
-          status: "pending", // Sadece bekleyen kargoları sil
-        },
-      });
+      // IMPORTANT: Clear pending + assigned cargos and detach from planned routes.
+      // Otherwise station summaries (pending-only) can look correct while
+      // planning uses an incomplete set of cargos.
+      await this.clearCargosByDate(scheduledDate);
     }
 
     // Kargoları oluştur
@@ -274,7 +297,7 @@ export class CargosService {
           destinationStationId: hub.id,
           weightKg: parseFloat(weightPerCargo.toFixed(2)),
           description: `${scenarioName} - ${station.name} #${i + 1}`,
-          scheduledDate: new Date(scheduledDate),
+          scheduledDate: dayStart,
           status: "pending",
         });
       }
@@ -306,10 +329,7 @@ export class CargosService {
 
   // Belirli tarihteki kargoların özet istatistiklerini getir
   async getCargoSummaryByDate(date: string) {
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+    const { dayStart, dayEnd } = this.getLocalDayRange(date);
 
     const cargos = await this.prisma.cargo.findMany({
       where: {
@@ -350,17 +370,182 @@ export class CargosService {
 
   // Belirli tarihteki bekleyen kargoları sil
   async clearCargosByDate(date: string) {
-    const dayStart = new Date(date);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+    const { dayStart, dayEnd } = this.getLocalDayRange(date);
 
-    // Sadece pending (bekleyen) kargoları sil - assigned, in_transit, delivered olanları silme
-    const result = await this.prisma.cargo.deleteMany({
+    const cargosToClear = await this.prisma.cargo.findMany({
       where: {
         scheduledDate: { gte: dayStart, lt: dayEnd },
-        status: "pending",
+        status: { in: ["pending", "assigned"] },
       },
+      select: { id: true },
+    });
+
+    const cargoIds = cargosToClear.map((c) => c.id);
+    if (cargoIds.length === 0) {
+      return {
+        success: true,
+        date,
+        deletedCount: 0,
+      };
+    }
+
+    const routeLinks = await this.prisma.planRouteCargo.findMany({
+      where: { cargoId: { in: cargoIds } },
+      select: { planRouteId: true },
+    });
+
+    const affectedPlanRouteIds = Array.from(
+      new Set(routeLinks.map((l) => l.planRouteId))
+    );
+
+    if (affectedPlanRouteIds.length > 0) {
+      const planRoutes = await this.prisma.planRoute.findMany({
+        where: { id: { in: affectedPlanRouteIds } },
+        select: {
+          id: true,
+          plan: { select: { status: true } },
+          trips: { select: { status: true } },
+        },
+      });
+
+      const blocked = planRoutes.filter((pr) => {
+        const planStatus = pr.plan.status;
+        const planAllowsMutation = planStatus === "draft" || planStatus === "active";
+        const hasStartedTrip = pr.trips.some(
+          (t) => t.status === "in_progress" || t.status === "completed"
+        );
+        return !planAllowsMutation || hasStartedTrip;
+      });
+
+      if (blocked.length > 0) {
+        throw new BadRequestException(
+          "Tamamlanmış/iptal edilmiş planların veya seferi başlamış rotaların kargoları temizlenemez"
+        );
+      }
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Önce plan rotalarından kargo atamalarını kaldır (FK kısıtı + UI'da rotadan kaybolsun)
+      await tx.planRouteCargo.deleteMany({
+        where: { cargoId: { in: cargoIds } },
+      });
+
+      // Etkilenen rotalara bağlı (başlamamış) seferleri temizle ki boş rota/plan silme takılmasın
+      if (affectedPlanRouteIds.length > 0) {
+        await tx.trip.deleteMany({
+          where: {
+            planRouteId: { in: affectedPlanRouteIds },
+            status: { notIn: ["in_progress", "completed"] },
+          },
+        });
+      }
+
+      // Ardından kargoları sil
+      const deleteRes = await tx.cargo.deleteMany({
+        where: { id: { in: cargoIds } },
+      });
+
+      if (affectedPlanRouteIds.length > 0) {
+        // Kalan kargo atamalarını ve ağırlıkları yeniden hesapla
+        const remainingAssignments = await tx.planRouteCargo.findMany({
+          where: { planRouteId: { in: affectedPlanRouteIds } },
+          select: {
+            planRouteId: true,
+            cargo: { select: { weightKg: true } },
+          },
+        });
+
+        const routeAgg = new Map<
+          string,
+          { cargoCount: number; totalWeightKg: number }
+        >();
+        for (const row of remainingAssignments) {
+          const current = routeAgg.get(row.planRouteId) ?? {
+            cargoCount: 0,
+            totalWeightKg: 0,
+          };
+          current.cargoCount += 1;
+          current.totalWeightKg += Number(row.cargo.weightKg);
+          routeAgg.set(row.planRouteId, current);
+        }
+
+        // Boş rotaları sil, dolu rotalarda sayıları güncelle
+        const planRouteMeta = await tx.planRoute.findMany({
+          where: { id: { in: affectedPlanRouteIds } },
+          select: { id: true, planId: true },
+        });
+        const affectedPlanIds = Array.from(
+          new Set(planRouteMeta.map((r) => r.planId))
+        );
+
+        for (const pr of planRouteMeta) {
+          const agg = routeAgg.get(pr.id) ?? { cargoCount: 0, totalWeightKg: 0 };
+          if (agg.cargoCount === 0) {
+            await tx.planRoute.delete({ where: { id: pr.id } });
+          } else {
+            await tx.planRoute.update({
+              where: { id: pr.id },
+              data: {
+                cargoCount: agg.cargoCount,
+                totalWeightKg: agg.totalWeightKg,
+              },
+            });
+          }
+        }
+
+        // Plan toplamlarını güncelle (kalan route'lardan türet)
+        for (const planId of affectedPlanIds) {
+          const routes = await tx.planRoute.findMany({
+            where: { planId },
+            select: {
+              totalDistanceKm: true,
+              totalCost: true,
+              cargoCount: true,
+              totalWeightKg: true,
+              vehicle: { select: { ownership: true } },
+            },
+          });
+
+          if (routes.length === 0) {
+            await tx.plan.delete({ where: { id: planId } });
+            continue;
+          }
+
+          const totals = routes.reduce(
+            (acc, r) => {
+              acc.totalDistanceKm += Number(r.totalDistanceKm);
+              acc.totalCost += Number(r.totalCost);
+              acc.totalCargos += r.cargoCount;
+              acc.totalWeightKg += Number(r.totalWeightKg);
+              acc.vehiclesUsed += 1;
+              if (r.vehicle.ownership === "rented") acc.vehiclesRented += 1;
+              return acc;
+            },
+            {
+              totalDistanceKm: 0,
+              totalCost: 0,
+              totalCargos: 0,
+              totalWeightKg: 0,
+              vehiclesUsed: 0,
+              vehiclesRented: 0,
+            }
+          );
+
+          await tx.plan.update({
+            where: { id: planId },
+            data: {
+              totalDistanceKm: totals.totalDistanceKm,
+              totalCost: totals.totalCost,
+              totalCargos: totals.totalCargos,
+              totalWeightKg: totals.totalWeightKg,
+              vehiclesUsed: totals.vehiclesUsed,
+              vehiclesRented: totals.vehiclesRented,
+            },
+          });
+        }
+      }
+
+      return deleteRes;
     });
 
     return {
@@ -374,21 +559,163 @@ export class CargosService {
   async deleteCargo(id: string) {
     const cargo = await this.prisma.cargo.findUnique({
       where: { id },
+      include: {
+        planRouteCargos: {
+          select: {
+            planRouteId: true,
+            planRoute: {
+              select: {
+                planId: true,
+                plan: { select: { status: true } },
+                trips: { select: { status: true } },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!cargo) {
       throw new NotFoundException("Kargo bulunamadı");
     }
 
-    // Sadece pending veya cancelled durumundaki kargolar silinebilir
-    if (cargo.status !== "pending" && cargo.status !== "cancelled") {
+    // pending/cancelled direkt silinebilir. assigned ise sadece draft planlarda ve sefer başlamadıysa silinebilir.
+    if (
+      cargo.status !== "pending" &&
+      cargo.status !== "cancelled" &&
+      cargo.status !== "assigned"
+    ) {
       throw new BadRequestException(
-        "Sadece bekleyen veya iptal edilmiş kargolar silinebilir"
+        "Sadece bekleyen, iptal edilmiş veya (taslak plandaki) atanmış kargolar silinebilir"
       );
     }
 
-    await this.prisma.cargo.delete({
-      where: { id },
+    if (cargo.status === "assigned" && cargo.planRouteCargos.length === 0) {
+      throw new BadRequestException("Bu kargo atanmış durumda, fakat rotası bulunamadı");
+    }
+
+    const affectedPlanRouteIds = cargo.planRouteCargos.map((x) => x.planRouteId);
+    const affectedPlanIds = Array.from(
+      new Set(cargo.planRouteCargos.map((x) => x.planRoute.planId))
+    );
+
+    if (cargo.planRouteCargos.length > 0) {
+      const blocked = cargo.planRouteCargos.some((x) => {
+        const planStatus = x.planRoute.plan.status;
+        const planAllowsMutation = planStatus === "draft" || planStatus === "active";
+        const hasStartedTrip = x.planRoute.trips.some(
+          (t) => t.status === "in_progress" || t.status === "completed"
+        );
+        return !planAllowsMutation || hasStartedTrip;
+      });
+      if (blocked) {
+        throw new BadRequestException(
+          "Tamamlanmış/iptal edilmiş planlarda veya seferi başlamış rotalarda kargo silinemez"
+        );
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      if (affectedPlanRouteIds.length > 0) {
+        await tx.trip.deleteMany({
+          where: {
+            planRouteId: { in: affectedPlanRouteIds },
+            status: { notIn: ["in_progress", "completed"] },
+          },
+        });
+        await tx.planRouteCargo.deleteMany({ where: { cargoId: id } });
+      }
+
+      await tx.cargo.delete({ where: { id } });
+
+      if (affectedPlanRouteIds.length > 0) {
+        const remainingAssignments = await tx.planRouteCargo.findMany({
+          where: { planRouteId: { in: affectedPlanRouteIds } },
+          select: {
+            planRouteId: true,
+            cargo: { select: { weightKg: true } },
+          },
+        });
+
+        const routeAgg = new Map<
+          string,
+          { cargoCount: number; totalWeightKg: number }
+        >();
+        for (const row of remainingAssignments) {
+          const current = routeAgg.get(row.planRouteId) ?? {
+            cargoCount: 0,
+            totalWeightKg: 0,
+          };
+          current.cargoCount += 1;
+          current.totalWeightKg += Number(row.cargo.weightKg);
+          routeAgg.set(row.planRouteId, current);
+        }
+
+        for (const planRouteId of affectedPlanRouteIds) {
+          const agg = routeAgg.get(planRouteId) ?? { cargoCount: 0, totalWeightKg: 0 };
+          if (agg.cargoCount === 0) {
+            await tx.planRoute.delete({ where: { id: planRouteId } });
+          } else {
+            await tx.planRoute.update({
+              where: { id: planRouteId },
+              data: {
+                cargoCount: agg.cargoCount,
+                totalWeightKg: agg.totalWeightKg,
+              },
+            });
+          }
+        }
+
+        for (const planId of affectedPlanIds) {
+          const routes = await tx.planRoute.findMany({
+            where: { planId },
+            select: {
+              totalDistanceKm: true,
+              totalCost: true,
+              cargoCount: true,
+              totalWeightKg: true,
+              vehicle: { select: { ownership: true } },
+            },
+          });
+
+          if (routes.length === 0) {
+            await tx.plan.delete({ where: { id: planId } });
+            continue;
+          }
+
+          const totals = routes.reduce(
+            (acc, r) => {
+              acc.totalDistanceKm += Number(r.totalDistanceKm);
+              acc.totalCost += Number(r.totalCost);
+              acc.totalCargos += r.cargoCount;
+              acc.totalWeightKg += Number(r.totalWeightKg);
+              acc.vehiclesUsed += 1;
+              if (r.vehicle.ownership === "rented") acc.vehiclesRented += 1;
+              return acc;
+            },
+            {
+              totalDistanceKm: 0,
+              totalCost: 0,
+              totalCargos: 0,
+              totalWeightKg: 0,
+              vehiclesUsed: 0,
+              vehiclesRented: 0,
+            }
+          );
+
+          await tx.plan.update({
+            where: { id: planId },
+            data: {
+              totalDistanceKm: totals.totalDistanceKm,
+              totalCost: totals.totalCost,
+              totalCargos: totals.totalCargos,
+              totalWeightKg: totals.totalWeightKg,
+              vehiclesUsed: totals.vehiclesUsed,
+              vehiclesRented: totals.vehiclesRented,
+            },
+          });
+        }
+      }
     });
 
     return { success: true, id };

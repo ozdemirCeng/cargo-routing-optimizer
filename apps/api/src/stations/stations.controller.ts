@@ -38,8 +38,7 @@ export class StationsController {
   @ApiOperation({ summary: 'İstasyon kargo özeti (ertesi gün için)' })
   @ApiQuery({ name: 'date', required: true, type: String })
   async getSummary(@Query('date') dateStr: string) {
-    const date = new Date(dateStr);
-    return this.stationsService.getStationSummary(date);
+    return this.stationsService.getStationSummary(dateStr);
   }
 
   @Get(':id')

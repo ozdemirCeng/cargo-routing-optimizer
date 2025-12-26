@@ -43,6 +43,14 @@ class Vehicle:
     rental_cost: float
 
 
+@dataclass
+class StopAssignment:
+    """A stop on a route with a subset of cargos assigned."""
+    station: Station
+    cargos: List[dict]
+    weight_kg: float
+
+
 class VRPOptimizer:
     """
     Vehicle Routing Problem Optimizer
@@ -58,7 +66,7 @@ class VRPOptimizer:
         self.params = input_data.parameters
         
         # Sonuçlar
-        self.routes: List[List[Station]] = []
+        self.routes: List[List[StopAssignment]] = []
         self.vehicle_assignments: List[Vehicle] = []
         self.unassigned: List[Station] = []
         self.iterations = 0
@@ -182,7 +190,7 @@ class VRPOptimizer:
                 return s
         return None
     
-    def calculate_route_distance(self, route: List[Station]) -> float:
+    def calculate_route_distance(self, route: List[StopAssignment]) -> float:
         """Rota toplam mesafesi (istasyonlar -> Hub).
 
         Araçların tek bir merkezden çıkması zorunlu değil; optimizasyona göre
@@ -194,16 +202,16 @@ class VRPOptimizer:
 
         total = 0
         for i in range(len(route) - 1):
-            total += self.get_distance(route[i].id, route[i + 1].id)
-        total += self.get_distance(route[-1].id, self.hub.id)
+            total += self.get_distance(route[i].station.id, route[i + 1].station.id)
+        total += self.get_distance(route[-1].station.id, self.hub.id)
         
         return total
     
-    def calculate_route_weight(self, route: List[Station]) -> float:
+    def calculate_route_weight(self, route: List[StopAssignment]) -> float:
         """Rota toplam ağırlığı"""
         return sum(s.weight_kg for s in route)
     
-    def calculate_route_cost(self, route: List[Station], vehicle: Vehicle) -> float:
+    def calculate_route_cost(self, route: List[StopAssignment], vehicle: Vehicle) -> float:
         """Rota maliyeti (mesafe + kiralama)"""
         distance = self.calculate_route_distance(route)
         distance_cost = distance * self.params.cost_per_km
@@ -239,7 +247,7 @@ class VRPOptimizer:
         """
         # 1. Greedy atama
         remaining = self.stations.copy()
-        routes = []
+        routes: List[List[StopAssignment]] = []
         vehicles_used = []
         
         # Önce mevcut araçları kullan (kapasiteye göre büyükten küçüğe)
@@ -257,8 +265,8 @@ class VRPOptimizer:
             if route:
                 routes.append(route)
                 vehicles_used.append(vehicle)
-                for s in route:
-                    remaining.remove(s)
+                # Remove fully-served stations (with no cargos left)
+                remaining = [s for s in remaining if s.cargos]
         
         # Kalan kargolar için araç kirala
         rented_count = 0
@@ -277,8 +285,7 @@ class VRPOptimizer:
             if route:
                 routes.append(route)
                 vehicles_used.append(rental_vehicle)
-                for s in route:
-                    remaining.remove(s)
+                remaining = [s for s in remaining if s.cargos]
             else:
                 # Tek istasyon bile sığmıyor (çok ağır)
                 if remaining:
@@ -286,7 +293,7 @@ class VRPOptimizer:
                     remaining = []
         
         # 2. 2-opt ile iyileştir
-        improved_routes = []
+        improved_routes: List[List[StopAssignment]] = []
         for route in routes:
             improved = self._two_opt(route)
             improved_routes.append(improved)
@@ -303,7 +310,7 @@ class VRPOptimizer:
         - Sığmayan kargolar unassigned
         """
         remaining = self.stations.copy()
-        routes = []
+        routes: List[List[StopAssignment]] = []
         
         # Araçları kapasiteye göre sırala (büyükten küçüğe)
         available_vehicles = sorted(
@@ -320,14 +327,13 @@ class VRPOptimizer:
             route = self._greedy_route_for_vehicle(remaining, vehicle.capacity_kg)
             if route:
                 routes.append(route)
-                for s in route:
-                    remaining.remove(s)
+                remaining = [s for s in remaining if s.cargos]
         
         # Sığmayan kargolar
         self.unassigned = remaining
         
         # 2-opt iyileştirme
-        improved_routes = []
+        improved_routes: List[List[StopAssignment]] = []
         for route in routes:
             improved = self._two_opt(route)
             improved_routes.append(improved)
@@ -340,7 +346,7 @@ class VRPOptimizer:
         self, 
         available: List[Station], 
         capacity: float
-    ) -> List[Station]:
+    ) -> List[StopAssignment]:
         """
         Greedy rota oluşturma (Reverse Nearest Neighbor + Kapasite)
 
@@ -353,11 +359,20 @@ class VRPOptimizer:
         Böylece gerçek seyir sırası, seçilen listenin tersidir.
         """
         # route_rev: Hub'a doğru giden sırada (last -> ... -> first)
-        route_rev: List[Station] = []
+        route_rev: List[StopAssignment] = []
         current_weight = 0
         current_pos = self.hub.id
         
         candidates = available.copy()
+
+        def refresh_station_totals(st: Station):
+            # Keep station demand as remaining cargos/weight.
+            st.cargo_count = len(st.cargos)
+            st.weight_kg = round(sum(c["weight_kg"] for c in st.cargos), 2)
+
+        # Ensure totals are consistent (especially after previous routes).
+        for st in candidates:
+            refresh_station_totals(st)
         
         while candidates:
             # Hub'a (veya bir sonraki stop'a) en yakın ve kapasiteye sığan istasyonu bul
@@ -365,7 +380,7 @@ class VRPOptimizer:
             best_dist = float('inf')
             
             for station in candidates:
-                if current_weight + station.weight_kg <= capacity:
+                if station.cargos and current_weight < capacity:
                     dist = self.get_distance(current_pos, station.id)
                     if dist < best_dist:
                         best = station
@@ -374,15 +389,42 @@ class VRPOptimizer:
             if best is None:
                 break  # Kapasiteye sığan yok
 
-            route_rev.append(best)
-            current_weight += best.weight_kg
+            remaining_cap = capacity - current_weight
+            assigned: List[dict] = []
+            assigned_w = 0.0
+
+            # Greedily take cargos from this station until capacity is filled.
+            # NOTE: This enables splitting a station across multiple vehicles/routes.
+            i = 0
+            while i < len(best.cargos):
+                cargo = best.cargos[i]
+                w = float(cargo.get("weight_kg", 0) or 0)
+                # Allow tiny epsilon to avoid float rounding deadlocks.
+                if w <= remaining_cap + 1e-6:
+                    assigned.append(cargo)
+                    assigned_w += w
+                    remaining_cap -= w
+                    best.cargos.pop(i)
+                    continue
+                i += 1
+
+            # If we couldn't assign any cargo from this station, stop.
+            if not assigned:
+                break
+
+            refresh_station_totals(best)
+            route_rev.append(StopAssignment(station=best, cargos=assigned, weight_kg=round(assigned_w, 2)))
+            current_weight += assigned_w
             current_pos = best.id
-            candidates.remove(best)
+
+            # If fully served, remove from candidates. Otherwise keep for future routes.
+            if not best.cargos:
+                candidates.remove(best)
 
         # Gerçek rota sırası: serbest başlangıç -> ... -> Hub
         return list(reversed(route_rev))
     
-    def _two_opt(self, route: List[Station]) -> List[Station]:
+    def _two_opt(self, route: List[StopAssignment]) -> List[StopAssignment]:
         """
         2-opt local search ile rota iyileştirme.
         Kenar swap yaparak daha kısa rota arar.
@@ -409,7 +451,7 @@ class VRPOptimizer:
     
     def _build_output(
         self, 
-        routes: List[List[Station]], 
+        routes: List[List[StopAssignment]], 
         vehicles: List[Vehicle]
     ) -> OptimizerOutput:
         """Sonuç çıktısını oluştur"""
@@ -427,7 +469,7 @@ class VRPOptimizer:
             
             distance = self.calculate_route_distance(route)
             weight = self.calculate_route_weight(route)
-            cargo_count = sum(s.cargo_count for s in route)
+            cargo_count = sum(len(s.cargos) for s in route)
             distance_cost = distance * self.params.cost_per_km
             rental_cost = vehicle.rental_cost if vehicle.is_rented else 0
             route_cost = distance_cost + rental_cost
@@ -440,7 +482,8 @@ class VRPOptimizer:
             user_cargo_counts = {}
             pickup_order = 0
             
-            for order, station in enumerate(route):
+            for order, stop in enumerate(route):
+                station = stop.station
                 sequence.append(RouteStop(
                     order=order,
                     station_id=station.id,
@@ -450,12 +493,12 @@ class VRPOptimizer:
                     longitude=station.lon,
                     is_hub=False,
                     action="pickup",
-                    cargo_count=station.cargo_count,
-                    weight_kg=station.weight_kg
+                    cargo_count=len(stop.cargos),
+                    weight_kg=stop.weight_kg
                 ))
                 
                 # Kargo atamaları
-                for cargo in station.cargos:
+                for cargo in stop.cargos:
                     pickup_order += 1
                     assigned_cargos.append(AssignedCargo(
                         cargo_id=cargo["id"],
@@ -482,22 +525,22 @@ class VRPOptimizer:
             
             # Polyline birleştir (başlangıç istasyonu -> ... -> Hub)
             polylines = []
-            prev_id = route[0].id
-            for station in route[1:]:
-                pl = self.get_polyline(prev_id, station.id)
+            prev_id = route[0].station.id
+            for stop in route[1:]:
+                pl = self.get_polyline(prev_id, stop.station.id)
                 if pl:
                     polylines.append(pl)
-                prev_id = station.id
+                prev_id = stop.station.id
             pl = self.get_polyline(prev_id, self.hub.id)
             if pl:
                 polylines.append(pl)
             
             # Duration hesapla (başlangıç istasyonu -> ... -> Hub)
             duration = 0
-            prev_id = route[0].id
-            for station in route[1:]:
-                duration += self.get_duration(prev_id, station.id)
-                prev_id = station.id
+            prev_id = route[0].station.id
+            for stop in route[1:]:
+                duration += self.get_duration(prev_id, stop.station.id)
+                prev_id = stop.station.id
             duration += self.get_duration(prev_id, self.hub.id)
             
             users = [

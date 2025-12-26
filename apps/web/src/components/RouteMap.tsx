@@ -53,6 +53,42 @@ const ROUTE_COLORS = {
 
 const COLOR_LIST = Object.values(ROUTE_COLORS);
 
+function resolveRouteColor(color: string | undefined, fallbackIndex: number) {
+  if (!color) return COLOR_LIST[fallbackIndex % COLOR_LIST.length];
+  if (color in ROUTE_COLORS) return ROUTE_COLORS[color as keyof typeof ROUTE_COLORS];
+  return color;
+}
+
+function createBriefPopup(options: {
+  map: maplibregl.Map;
+  lngLat: [number, number];
+  html: string;
+  offset?: number;
+  durationMs?: number;
+}) {
+  const popup = new maplibregl.Popup({
+    closeButton: false,
+    closeOnClick: false,
+    offset: options.offset ?? 16,
+    className: "route-hover-label",
+  })
+    .setLngLat(options.lngLat)
+    .setHTML(options.html)
+    .addTo(options.map);
+
+  const timeout = window.setTimeout(
+    () => popup.remove(),
+    options.durationMs ?? 1200
+  );
+
+  return {
+    remove: () => {
+      window.clearTimeout(timeout);
+      popup.remove();
+    },
+  };
+}
+
 export default function RouteMap({
   stations,
   routes,
@@ -226,6 +262,15 @@ export default function RouteMap({
       map.current?.on("mouseenter", layerId, () => {
         if (map.current) {
           map.current.getCanvas().style.cursor = "pointer";
+
+          // Bring hovered route to front so it doesn't stay underneath.
+          try {
+            const glowId = `route-glow-${idx}`;
+            if (map.current.getLayer(glowId)) map.current.moveLayer(glowId);
+            if (map.current.getLayer(layerId)) map.current.moveLayer(layerId);
+          } catch {
+            // ignore (layer ordering is best-effort)
+          }
         }
         onRouteHover?.(route.id);
       });
@@ -275,85 +320,170 @@ export default function RouteMap({
         .setLngLat([station.longitude, station.latitude])
         .addTo(map.current!);
 
-      // Popup with station name
-      const popup = new maplibregl.Popup({
-        closeButton: false,
-        closeOnClick: false,
-        offset: 15,
-        className: "route-popup",
-      }).setHTML(`
-        <div class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider">
-          ${station.name}
-        </div>
-      `);
+      // Brief label on hover: station name + (if known) stop order
+      let activeHover: { remove: () => void } | null = null;
+
+      const getBestStopOrder = () => {
+        if (/umuttepe/i.test(station.name)) return null;
+
+        const allOrders: number[] = [];
+        for (const r of routes) {
+          const s = r.stops?.find((st) => st.stationId && st.stationId === station.id);
+          if (typeof s?.order === "number") allOrders.push(s.order + 1);
+        }
+
+        const distinct = Array.from(new Set(allOrders));
+        // If multiple routes have different orders for this station, don't show any number
+        // to avoid confusing collisions.
+        if (distinct.length > 1) return null;
+
+        const preferred = selectedRouteId
+          ? routes.find((r) => r.id === selectedRouteId)
+          : null;
+        const preferredStop = preferred?.stops?.find(
+          (s) => s.stationId && s.stationId === station.id
+        );
+        if (preferredStop) return preferredStop.order + 1;
+
+        if (distinct.length === 1) return distinct[0];
+        return null;
+      };
 
       el.addEventListener("mouseenter", () => {
-        popup
-          .setLngLat([station.longitude, station.latitude])
-          .addTo(map.current!);
+        if (!map.current) return;
+        activeHover?.remove();
+        const order = getBestStopOrder();
+        const html = `
+          <div class="bg-white text-slate-900 px-2.5 py-1.5 rounded-md text-xs font-semibold">
+            ${station.name}${order ? ` • ${order}` : ""}
+          </div>
+        `;
+        activeHover = createBriefPopup({
+          map: map.current,
+          lngLat: [station.longitude, station.latitude],
+          html,
+          offset: 14,
+          durationMs: 1200,
+        });
       });
 
       el.addEventListener("mouseleave", () => {
-        popup.remove();
+        activeHover?.remove();
+        activeHover = null;
       });
 
       markers.current.push(marker);
     });
-  }, [stations, loaded]);
+  }, [stations, routes, selectedRouteId, loaded]);
 
-  // Numbered stop markers for selected route
+  // Numbered stop markers (all routes)
   useEffect(() => {
     if (!map.current || !loaded) return;
 
     stopMarkers.current.forEach((m) => m.remove());
     stopMarkers.current = [];
 
-    if (!selectedRouteId) return;
-    const selectedRoute = routes.find((r) => r.id === selectedRouteId);
-    if (!selectedRoute?.stops || selectedRoute.stops.length === 0) return;
+    const renderedNameOnlyStops = new Set<string>();
 
-    const sortedStops = [...selectedRoute.stops].sort((a, b) => a.order - b.order);
-
-    for (const stop of sortedStops) {
-      const el = document.createElement("div");
-      el.className = "route-stop-order-marker";
-      const number = stop.order + 1;
-
-      el.innerHTML = `
-        <div class="relative">
-          <div class="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-extrabold text-slate-900 shadow-xl border border-white/30 ${
-            stop.isHub ? "bg-white" : "bg-white/90"
-          }">
-            ${number}
-          </div>
-        </div>
-      `;
-
-      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
-        .setLngLat([stop.longitude, stop.latitude])
-        .addTo(map.current);
-
-      if (stop.label) {
-        const popup = new maplibregl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-          offset: 18,
-          className: "route-popup",
-        }).setHTML(`
-          <div class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider">
-            ${number}. ${stop.label}
-          </div>
-        `);
-
-        el.addEventListener("mouseenter", () => {
-          popup.setLngLat([stop.longitude, stop.latitude]).addTo(map.current!);
-        });
-        el.addEventListener("mouseleave", () => popup.remove());
+    const resolveStopDisplayName = (stop: NonNullable<Route["stops"]>[number]) => {
+      if (stop.label) return stop.label;
+      if (stop.stationId) {
+        const st = stations.find((s) => s.id === stop.stationId);
+        if (st?.name) return st.name;
       }
+      return null;
+    };
 
-      stopMarkers.current.push(marker);
-    }
-  }, [routes, selectedRouteId, loaded]);
+    const isNameOnlyStop = (stop: NonNullable<Route["stops"]>[number]) => {
+      const name = resolveStopDisplayName(stop);
+      return !!name && /umuttepe/i.test(name);
+    };
+
+    routes.forEach((route, routeIndex) => {
+      if (!route.stops || route.stops.length === 0) return;
+
+      const sortedStops = [...route.stops].sort((a, b) => a.order - b.order);
+      const routeColor = resolveRouteColor(route.color, routeIndex);
+
+      for (const stop of sortedStops) {
+        const displayName = resolveStopDisplayName(stop);
+        const shouldNameOnly = isNameOnlyStop(stop);
+        if (shouldNameOnly) {
+          const key = stop.stationId
+            ? `station:${stop.stationId}`
+            : `coord:${stop.longitude.toFixed(6)},${stop.latitude.toFixed(6)}`;
+
+          // Render only one marker for this name-only stop to avoid overlapping numbers.
+          if (renderedNameOnlyStops.has(key)) continue;
+          renderedNameOnlyStops.add(key);
+
+          const el = document.createElement("div");
+          el.className = "route-stop-nameonly-marker";
+          el.style.zIndex = "3";
+
+          el.innerHTML = `
+            <div class="px-2.5 py-1.5 rounded-md bg-white text-slate-900 text-xs font-semibold shadow-xl border border-white/30">
+              ${displayName ?? ""}
+            </div>
+          `;
+
+          const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+            .setLngLat([stop.longitude, stop.latitude])
+            .addTo(map.current!);
+
+          stopMarkers.current.push(marker);
+          continue;
+        }
+
+        const el = document.createElement("div");
+        el.className = "route-stop-order-marker";
+        el.style.zIndex = "2";
+        const number = stop.order + 1;
+
+        el.innerHTML = `
+          <div class="relative">
+            <div
+              class="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-extrabold shadow-xl border border-white/30"
+              style="background:${routeColor};color:#ffffff"
+            >
+              ${number}
+            </div>
+          </div>
+        `;
+
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+          .setLngLat([stop.longitude, stop.latitude])
+          .addTo(map.current!);
+
+        // Optional brief label on hover (no black card)
+        if (displayName) {
+          let activeHover: { remove: () => void } | null = null;
+          el.addEventListener("mouseenter", () => {
+            if (!map.current) return;
+            activeHover?.remove();
+            const html = `
+              <div class="bg-white text-slate-900 px-2.5 py-1.5 rounded-md text-xs font-semibold">
+                ${number}. ${displayName}
+              </div>
+            `;
+            activeHover = createBriefPopup({
+              map: map.current,
+              lngLat: [stop.longitude, stop.latitude],
+              html,
+              offset: 16,
+              durationMs: 1200,
+            });
+          });
+          el.addEventListener("mouseleave", () => {
+            activeHover?.remove();
+            activeHover = null;
+          });
+        }
+
+        stopMarkers.current.push(marker);
+      }
+    });
+  }, [routes, loaded]);
 
   return (
     <div className="absolute inset-0 z-0">
@@ -366,6 +496,15 @@ export default function RouteMap({
           box-shadow: none;
         }
         .route-popup .maplibregl-popup-tip {
+          display: none;
+        }
+
+        .route-hover-label .maplibregl-popup-content {
+          background: transparent;
+          padding: 0;
+          box-shadow: none;
+        }
+        .route-hover-label .maplibregl-popup-tip {
           display: none;
         }
       `}</style>

@@ -4,6 +4,7 @@ import {
   IsArray,
   ValidateNested,
   IsNumber,
+  IsInt,
   Min,
   IsOptional,
   IsDateString,
@@ -19,7 +20,7 @@ export class ScenarioCargoItemDto {
   stationCode: string;
 
   @ApiProperty({ description: "Kargo sayısı", example: 10 })
-  @IsNumber()
+  @IsInt()
   @Min(1)
   count: number;
 
