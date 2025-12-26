@@ -436,13 +436,6 @@ export class PlansService {
   async delete(id: string) {
     const plan = await this.findById(id);
 
-    // Aktif planlar silinemez
-    if (plan.status === "active") {
-      throw new BadRequestException(
-        "Aktif planlar silinemez. Önce planı devre dışı bırakın."
-      );
-    }
-
     // Başlamış seferler varsa silinmez
     const startedTrips = await this.prisma.trip.findMany({
       where: {

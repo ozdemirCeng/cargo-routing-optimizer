@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { plansApi, stationsApi, vehiclesApi } from "@/lib/api";
 import dynamic from "next/dynamic";
-import VehicleCard, { AddVehicleCard } from "@/components/VehicleCard";
+import VehicleCard from "@/components/VehicleCard";
 
 const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
 
@@ -118,6 +118,12 @@ export default function PlansPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plans"] });
       setSelectedPlan(null);
+    },
+    onError: (error: any) => {
+      alert(
+        error?.response?.data?.message ||
+          "Plan silinirken hata oluştu (aktif sefer olabilir)"
+      );
     },
   });
 
@@ -520,18 +526,6 @@ export default function PlansPage() {
               {vehicleCards.length} Aktif
             </span>
           </div>
-          <div className="flex gap-2">
-            <button className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
-              <span className="material-symbols-rounded text-[20px]">
-                filter_list
-              </span>
-            </button>
-            <button className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
-              <span className="material-symbols-rounded text-[20px]">
-                fullscreen
-              </span>
-            </button>
-          </div>
         </div>
 
         {/* Scrollable Content */}
@@ -549,7 +543,6 @@ export default function PlansPage() {
                   }
                 />
               ))}
-              <AddVehicleCard />
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
