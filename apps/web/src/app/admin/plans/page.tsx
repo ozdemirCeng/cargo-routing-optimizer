@@ -181,6 +181,11 @@ export default function PlansPage() {
           firstStation && lastStation
             ? { from: firstStation, to: lastStation }
             : undefined,
+        stops:
+          route.routeDetails?.map((s) => ({
+            label: s.station_code || s.station_name,
+            isHub: s.is_hub,
+          })) || [],
         cost: Number(route.totalCost) || 0,
         loadPercentage,
         color: ROUTE_COLORS[idx % ROUTE_COLORS.length],
