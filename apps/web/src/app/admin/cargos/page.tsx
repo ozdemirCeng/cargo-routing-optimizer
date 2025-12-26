@@ -110,9 +110,16 @@ export default function CargosPage() {
   });
 
   // Non-hub stations for cargo delivery
-  const nonHubStations = useMemo(() => {
-    return (stations?.filter((s: Station) => !s.isHub) || []) as Station[];
+  const stationsList = useMemo(() => {
+    const value: any = stations;
+    if (Array.isArray(value)) return value as Station[];
+    if (Array.isArray(value?.data)) return value.data as Station[];
+    return [] as Station[];
   }, [stations]);
+
+  const nonHubStations = useMemo(() => {
+    return stationsList.filter((s) => !s.isHub);
+  }, [stationsList]);
 
   // Filter and paginate cargos
   const filteredCargos = useMemo(() => {
