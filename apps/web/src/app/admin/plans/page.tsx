@@ -439,7 +439,7 @@ export default function PlansPage() {
 
       {/* Previous Plans List (Top Left) */}
       {plans && plans.length > 0 && !selectedPlan && (
-        <div className="absolute top-24 left-6 z-30 w-72 bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="absolute top-24 left-6 bottom-[calc(1.5rem+320px+1.5rem)] z-40 w-72 bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col">
           <div className="px-4 py-3 border-b border-white/5 bg-white/5">
             <h3 className="text-sm font-bold flex items-center gap-2">
               <span className="material-symbols-rounded text-[18px]">
@@ -448,8 +448,8 @@ export default function PlansPage() {
               Geçmiş Planlar
             </h3>
           </div>
-          <div className="max-h-[300px] overflow-y-auto glass-scroll">
-            {plans.slice(0, 5).map((plan: Plan) => (
+          <div className="flex-1 overflow-y-auto glass-scroll">
+            {plans.map((plan: Plan) => (
               <div
                 key={plan.id}
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0 group"
