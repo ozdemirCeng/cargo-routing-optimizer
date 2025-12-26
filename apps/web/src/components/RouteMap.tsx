@@ -138,8 +138,30 @@ export default function RouteMap({
     routes.forEach((route, idx) => {
       if (!route.polyline) return;
 
-      const decoded = polyline.decode(route.polyline);
-      const coordinates = decoded.map(([lat, lng]) => [lng, lat]);
+      // Optimizer output stores polylines as semicolon-separated OSRM segments.
+      // Decode and concatenate segments safely.
+      const segments = route.polyline.split(";").filter(Boolean);
+      const coordinates: [number, number][] = [];
+
+      for (const segment of segments) {
+        try {
+          const decoded = polyline.decode(segment);
+          for (let i = 0; i < decoded.length; i++) {
+            const [lat, lng] = decoded[i];
+            const point: [number, number] = [lng, lat];
+
+            // Avoid duplicating the join point between consecutive segments.
+            const last = coordinates[coordinates.length - 1];
+            if (last && last[0] === point[0] && last[1] === point[1]) continue;
+
+            coordinates.push(point);
+          }
+        } catch (e) {
+          console.error("Polyline decode error:", e);
+        }
+      }
+
+      if (coordinates.length < 2) return;
 
       const layerId = `route-${idx}`;
       const color = route.color || COLOR_LIST[idx % COLOR_LIST.length];
