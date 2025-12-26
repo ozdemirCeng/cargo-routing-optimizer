@@ -342,16 +342,25 @@ class VRPOptimizer:
         capacity: float
     ) -> List[Station]:
         """
-        Greedy rota oluşturma (Nearest Neighbor + Kapasite)
+        Greedy rota oluşturma (Reverse Nearest Neighbor + Kapasite)
+
+        İsterlere göre araçların tek bir merkezden başlaması zorunlu değil.
+        Ancak tüm rotalar Hub'da (Umuttepe) bitmeli.
+
+        Bu yüzden rotayı HUB'dan geriye doğru kurarız:
+        - İlk seçilen istasyon Hub'a en yakın olan (son pickup)
+        - Sonra onun en yakını (bir önceki pickup) ...
+        Böylece gerçek seyir sırası, seçilen listenin tersidir.
         """
-        route = []
+        # route_rev: Hub'a doğru giden sırada (last -> ... -> first)
+        route_rev: List[Station] = []
         current_weight = 0
         current_pos = self.hub.id
         
         candidates = available.copy()
         
         while candidates:
-            # En yakın ve kapasiteye sığan istasyonu bul
+            # Hub'a (veya bir sonraki stop'a) en yakın ve kapasiteye sığan istasyonu bul
             best = None
             best_dist = float('inf')
             
@@ -364,13 +373,14 @@ class VRPOptimizer:
             
             if best is None:
                 break  # Kapasiteye sığan yok
-            
-            route.append(best)
+
+            route_rev.append(best)
             current_weight += best.weight_kg
             current_pos = best.id
             candidates.remove(best)
-        
-        return route
+
+        # Gerçek rota sırası: serbest başlangıç -> ... -> Hub
+        return list(reversed(route_rev))
     
     def _two_opt(self, route: List[Station]) -> List[Station]:
         """
@@ -553,7 +563,7 @@ class VRPOptimizer:
             routes=route_results,
             unassigned=unassigned_list,
             algorithm_info={
-                "name": "Greedy + 2-opt",
+                "name": "Reverse Greedy (end@hub) + 2-opt",
                 "iterations": self.iterations,
                 "execution_time_ms": 0,
                 "improvement_percentage": 0
