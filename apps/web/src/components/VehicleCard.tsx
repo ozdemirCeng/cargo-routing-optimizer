@@ -10,7 +10,6 @@ interface VehicleCardProps {
       from: string;
       to: string;
     };
-    stops?: Array<{ label: string; isHub?: boolean }>;
     cost?: number;
     loadPercentage: number;
   };
@@ -124,41 +123,6 @@ export default function VehicleCard({
                 <span className="text-slate-300 mx-1">&gt;</span>{" "}
                 {vehicle.route.to}
               </span>
-            </div>
-          )}
-
-          {vehicle.stops && vehicle.stops.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between text-xs text-slate-300">
-                <span>Sıra</span>
-                <span className="text-slate-400">
-                  {vehicle.stops.length} durak
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {vehicle.stops.map((stop, idx) => (
-                  <span
-                    key={`${stop.label}-${idx}`}
-                    className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold border ${
-                      stop.isHub
-                        ? "bg-white/10 border-white/10 text-white"
-                        : "bg-white/5 border-white/5 text-slate-200"
-                    }`}
-                    title={stop.label}
-                  >
-                    <span
-                      className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
-                        stop.isHub
-                          ? "bg-white text-slate-900"
-                          : "bg-slate-800 text-white"
-                      }`}
-                    >
-                      {idx + 1}
-                    </span>
-                    <span className="max-w-[160px] truncate">{stop.label}</span>
-                  </span>
-                ))}
-              </div>
             </div>
           )}
 

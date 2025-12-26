@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { plansApi, stationsApi, vehiclesApi } from "@/lib/api";
 import dynamic from "next/dynamic";
@@ -62,7 +62,15 @@ export default function PlansPage() {
   });
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [problemType, setProblemType] = useState("unlimited_vehicles");
+
+  // Keep a default selected route so stop order is always visible on the map.
+  useEffect(() => {
+    const firstRouteId = selectedPlan?.routes?.[0]?.id || null;
+    setSelectedRouteId(firstRouteId);
+    setHoveredRouteId(firstRouteId);
+  }, [selectedPlan?.id]);
 
   // Queries
   const { data: plans, isLoading: plansLoading } = useQuery({
@@ -190,11 +198,6 @@ export default function PlansPage() {
           firstStation && lastStation
             ? { from: firstStation, to: lastStation }
             : undefined,
-        stops:
-          route.routeDetails?.map((s) => ({
-            label: s.station_code || s.station_name,
-            isHub: s.is_hub,
-          })) || [],
         cost: Number(route.totalCost) || 0,
         loadPercentage,
         color: ROUTE_COLORS[idx % ROUTE_COLORS.length],
@@ -265,8 +268,15 @@ export default function PlansPage() {
       <RouteMap
         stations={mapStations}
         routes={mapRoutes}
-        onRouteHover={setHoveredRouteId}
-        selectedRouteId={hoveredRouteId}
+        onRouteHover={(id) => {
+          if (!id) {
+            setHoveredRouteId(null);
+            return;
+          }
+          setHoveredRouteId(id);
+          setSelectedRouteId(id);
+        }}
+        selectedRouteId={selectedRouteId}
       />
 
       {/* Top Control Bar */}
@@ -487,7 +497,7 @@ export default function PlansPage() {
       )}
 
       {/* Mission Control Panel (Bottom) */}
-      <section className="absolute bottom-6 left-6 right-6 h-[260px] z-30 flex flex-col bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <section className="absolute bottom-6 left-6 right-6 h-[320px] z-30 flex flex-col bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
         {/* Panel Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/5">
           <div className="flex items-center gap-3">
@@ -524,9 +534,9 @@ export default function PlansPage() {
                   key={card.id}
                   vehicle={card}
                   color={card.color}
-                  isSelected={hoveredRouteId === card.id}
+                  isSelected={selectedRouteId === card.id}
                   onHover={(hovered) =>
-                    setHoveredRouteId(hovered ? card.id : null)
+                    hovered ? setSelectedRouteId(card.id) : undefined
                   }
                 />
               ))}
