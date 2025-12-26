@@ -25,6 +25,14 @@ interface Route {
   loadPercentage: number;
   cost: number;
   stations: { name: string; code: string }[];
+  stops?: Array<{
+    order: number;
+    stationId?: string;
+    label?: string;
+    latitude: number;
+    longitude: number;
+    isHub?: boolean;
+  }>;
 }
 
 interface RouteMapProps {
@@ -54,6 +62,7 @@ export default function RouteMap({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markers = useRef<maplibregl.Marker[]>([]);
+  const stopMarkers = useRef<maplibregl.Marker[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   // Kocaeli merkez koordinatları
@@ -291,6 +300,60 @@ export default function RouteMap({
       markers.current.push(marker);
     });
   }, [stations, loaded]);
+
+  // Numbered stop markers for selected route
+  useEffect(() => {
+    if (!map.current || !loaded) return;
+
+    stopMarkers.current.forEach((m) => m.remove());
+    stopMarkers.current = [];
+
+    if (!selectedRouteId) return;
+    const selectedRoute = routes.find((r) => r.id === selectedRouteId);
+    if (!selectedRoute?.stops || selectedRoute.stops.length === 0) return;
+
+    const sortedStops = [...selectedRoute.stops].sort((a, b) => a.order - b.order);
+
+    for (const stop of sortedStops) {
+      const el = document.createElement("div");
+      el.className = "route-stop-order-marker";
+      const number = stop.order + 1;
+
+      el.innerHTML = `
+        <div class="relative">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-extrabold text-slate-900 shadow-xl border border-white/30 ${
+            stop.isHub ? "bg-white" : "bg-white/90"
+          }">
+            ${number}
+          </div>
+        </div>
+      `;
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat([stop.longitude, stop.latitude])
+        .addTo(map.current);
+
+      if (stop.label) {
+        const popup = new maplibregl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 18,
+          className: "route-popup",
+        }).setHTML(`
+          <div class="bg-slate-900 text-white px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider">
+            ${number}. ${stop.label}
+          </div>
+        `);
+
+        el.addEventListener("mouseenter", () => {
+          popup.setLngLat([stop.longitude, stop.latitude]).addTo(map.current!);
+        });
+        el.addEventListener("mouseleave", () => popup.remove());
+      }
+
+      stopMarkers.current.push(marker);
+    }
+  }, [routes, selectedRouteId, loaded]);
 
   return (
     <div className="absolute inset-0 z-0">

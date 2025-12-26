@@ -146,6 +146,15 @@ export default function PlansPage() {
         ? Math.round((route.totalWeightKg / route.vehicle.capacityKg) * 100)
         : 0,
       cost: route.totalCost,
+      stops:
+        route.routeDetails?.map((s, order) => ({
+          order,
+          stationId: s.station_id,
+          label: s.station_code || s.station_name,
+          latitude: s.latitude,
+          longitude: s.longitude,
+          isHub: s.is_hub,
+        })) || [],
       stations:
         route.routeDetails?.map((s) => ({
           name: s.station_name,
