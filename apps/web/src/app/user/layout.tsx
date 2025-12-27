@@ -122,9 +122,7 @@ export default function UserLayout({
                 <span className="text-sm font-semibold text-white">
                   {user.fullName}
                 </span>
-                <span className="text-xs text-slate-300">
-                  Kullanıcı
-                </span>
+                <span className="text-xs text-slate-300">Kullanıcı</span>
               </div>
               <span className="material-symbols-rounded text-slate-300">
                 expand_more
@@ -138,9 +136,7 @@ export default function UserLayout({
                   <p className="text-sm font-medium text-white">
                     {user.fullName}
                   </p>
-                  <p className="text-xs text-slate-300">
-                    {user.email}
-                  </p>
+                  <p className="text-xs text-slate-300">{user.email}</p>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -174,11 +170,6 @@ export default function UserLayout({
               </span>
             </div>
             <div className="flex items-center gap-4">
-              <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-800/50 text-slate-200 transition-colors relative">
-                <span className="material-symbols-rounded text-xl">
-                  notifications
-                </span>
-              </button>
               <Link
                 href="/user/new-cargo"
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:shadow-lg hover:shadow-emerald-500/20 transition-all font-medium text-sm"

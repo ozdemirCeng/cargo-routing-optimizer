@@ -13,7 +13,13 @@ export default function UserDashboard() {
     queryFn: () =>
       cargosApi
         .getAll()
-        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
 
   const statusLabels: Record<string, string> = {
@@ -215,7 +221,7 @@ export default function UserDashboard() {
                       <td className="py-4 px-4">
                         <button
                           onClick={() =>
-                            router.push(`/user/track?id=${cargo.id}`)
+                            router.push(`/user/track?id=${cargo.trackingCode}`)
                           }
                           disabled={
                             !["assigned", "in_transit"].includes(cargo.status)

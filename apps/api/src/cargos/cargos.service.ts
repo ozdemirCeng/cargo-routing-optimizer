@@ -77,8 +77,15 @@ export class CargosService {
     });
   }
 
-  async findById(id: string, userId: string, role: string) {
-    const where = role === "admin" ? { id } : { id, userId };
+  async findById(idOrTrackingCode: string, userId: string, role: string) {
+    // Hem ID hem tracking code ile arama yap
+    const isTrackingCode = idOrTrackingCode.startsWith("KRG-");
+
+    const baseWhere = isTrackingCode
+      ? { trackingCode: idOrTrackingCode }
+      : { id: idOrTrackingCode };
+
+    const where = role === "admin" ? baseWhere : { ...baseWhere, userId };
 
     const cargo = await this.prisma.cargo.findFirst({
       where,
@@ -126,7 +133,8 @@ export class CargosService {
       : undefined;
 
     const cargoCount =
-      typeof (data as any).cargoCount === "number" && Number.isFinite((data as any).cargoCount)
+      typeof (data as any).cargoCount === "number" &&
+      Number.isFinite((data as any).cargoCount)
         ? Math.max(1, Math.trunc((data as any).cargoCount))
         : 1;
 
@@ -200,8 +208,19 @@ export class CargosService {
   }
 
   // Kargonun taşındığı aracın rotasını getir (RBAC enforced)
-  async getCargoRoute(cargoId: string, userId: string, role: string) {
-    const where = role === "admin" ? { id: cargoId } : { id: cargoId, userId };
+  async getCargoRoute(
+    cargoIdOrTrackingCode: string,
+    userId: string,
+    role: string
+  ) {
+    // Hem ID hem tracking code ile arama yap
+    const isTrackingCode = cargoIdOrTrackingCode.startsWith("KRG-");
+
+    const baseWhere = isTrackingCode
+      ? { trackingCode: cargoIdOrTrackingCode }
+      : { id: cargoIdOrTrackingCode };
+
+    const where = role === "admin" ? baseWhere : { ...baseWhere, userId };
 
     const cargo = await this.prisma.cargo.findFirst({
       where,
@@ -256,7 +275,8 @@ export class CargosService {
       };
       stationCargoStats.set(stationId, {
         cargoCount: current.cargoCount + 1,
-        totalWeightKg: current.totalWeightKg + (Number.isFinite(weight) ? weight : 0),
+        totalWeightKg:
+          current.totalWeightKg + (Number.isFinite(weight) ? weight : 0),
       });
     }
 
@@ -518,7 +538,8 @@ export class CargosService {
 
       const blocked = planRoutes.filter((pr) => {
         const planStatus = pr.plan.status;
-        const planAllowsMutation = planStatus === "draft" || planStatus === "active";
+        const planAllowsMutation =
+          planStatus === "draft" || planStatus === "active";
         const hasStartedTrip = pr.trips.some(
           (t) => t.status === "in_progress" || t.status === "completed"
         );
@@ -587,7 +608,10 @@ export class CargosService {
         );
 
         for (const pr of planRouteMeta) {
-          const agg = routeAgg.get(pr.id) ?? { cargoCount: 0, totalWeightKg: 0 };
+          const agg = routeAgg.get(pr.id) ?? {
+            cargoCount: 0,
+            totalWeightKg: 0,
+          };
           if (agg.cargoCount === 0) {
             await tx.planRoute.delete({ where: { id: pr.id } });
           } else {
@@ -699,10 +723,14 @@ export class CargosService {
     }
 
     if (cargo.status === "assigned" && cargo.planRouteCargos.length === 0) {
-      throw new BadRequestException("Bu kargo atanmış durumda, fakat rotası bulunamadı");
+      throw new BadRequestException(
+        "Bu kargo atanmış durumda, fakat rotası bulunamadı"
+      );
     }
 
-    const affectedPlanRouteIds = cargo.planRouteCargos.map((x) => x.planRouteId);
+    const affectedPlanRouteIds = cargo.planRouteCargos.map(
+      (x) => x.planRouteId
+    );
     const affectedPlanIds = Array.from(
       new Set(cargo.planRouteCargos.map((x) => x.planRoute.planId))
     );
@@ -710,7 +738,8 @@ export class CargosService {
     if (cargo.planRouteCargos.length > 0) {
       const blocked = cargo.planRouteCargos.some((x) => {
         const planStatus = x.planRoute.plan.status;
-        const planAllowsMutation = planStatus === "draft" || planStatus === "active";
+        const planAllowsMutation =
+          planStatus === "draft" || planStatus === "active";
         const hasStartedTrip = x.planRoute.trips.some(
           (t) => t.status === "in_progress" || t.status === "completed"
         );
@@ -760,7 +789,10 @@ export class CargosService {
         }
 
         for (const planRouteId of affectedPlanRouteIds) {
-          const agg = routeAgg.get(planRouteId) ?? { cargoCount: 0, totalWeightKg: 0 };
+          const agg = routeAgg.get(planRouteId) ?? {
+            cargoCount: 0,
+            totalWeightKg: 0,
+          };
           if (agg.cargoCount === 0) {
             await tx.planRoute.delete({ where: { id: planRouteId } });
           } else {
