@@ -104,17 +104,32 @@ function BarChart({
   const maxValue = Math.max(...data.map((d) => d.value), 1);
   // Dinamik bar genişliği ve gap - çok fazla item varsa küçült
   const itemCount = data.length;
-  const barWidth = itemCount <= 4 ? 'w-16 md:w-24' : itemCount <= 6 ? 'w-14 md:w-20' : 'w-12 md:w-16';
-  const gapSize = itemCount <= 4 ? 'gap-6 md:gap-12' : itemCount <= 6 ? 'gap-4 md:gap-8' : 'gap-3 md:gap-5';
-  
+  const barWidth =
+    itemCount <= 4
+      ? "w-16 md:w-24"
+      : itemCount <= 6
+        ? "w-14 md:w-20"
+        : "w-12 md:w-16";
+  const gapSize =
+    itemCount <= 4
+      ? "gap-6 md:gap-12"
+      : itemCount <= 6
+        ? "gap-4 md:gap-8"
+        : "gap-3 md:gap-5";
+
   // Max bar height in pixels
   const maxBarHeight = 180;
 
   return (
     <div className="flex-1 overflow-x-auto overflow-y-visible">
-      <div className={`flex items-end ${gapSize} px-4 md:px-8 pt-10 pb-4 min-w-max h-full`}>
+      <div
+        className={`flex items-end ${gapSize} px-4 md:px-8 pt-10 pb-4 min-w-max h-full`}
+      >
         {data.map((item, idx) => {
-          const barHeight = Math.max((item.value / maxValue) * maxBarHeight, 24);
+          const barHeight = Math.max(
+            (item.value / maxValue) * maxBarHeight,
+            24
+          );
           return (
             <div
               key={idx}
@@ -122,7 +137,11 @@ function BarChart({
             >
               {/* Tooltip */}
               <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap bg-slate-800 border border-blue-500/50 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 font-semibold z-50">
-                ₺{item.value.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ₺
+                {item.value.toLocaleString("tr-TR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
               </div>
               {/* Bar */}
               <div
@@ -139,8 +158,13 @@ function BarChart({
                 <p className="text-[11px] font-bold uppercase tracking-wider text-blue-400 group-hover:text-blue-300 transition-colors truncate">
                   {item.label}
                 </p>
-                <p className="text-[9px] mt-0.5 text-slate-500 group-hover:text-slate-400 transition-colors truncate" title={item.sublabel}>
-                  {item.sublabel.length > 12 ? item.sublabel.slice(0, 10) + '...' : item.sublabel}
+                <p
+                  className="text-[9px] mt-0.5 text-slate-500 group-hover:text-slate-400 transition-colors truncate"
+                  title={item.sublabel}
+                >
+                  {item.sublabel.length > 12
+                    ? item.sublabel.slice(0, 10) + "..."
+                    : item.sublabel}
                 </p>
               </div>
             </div>
@@ -157,7 +181,12 @@ function DonutChart({
   centerValue,
   centerLabel,
 }: {
-  segments: { value: number; color: string; label: string; isRented?: boolean }[];
+  segments: {
+    value: number;
+    color: string;
+    label: string;
+    isRented?: boolean;
+  }[];
   centerValue: string;
   centerLabel: string;
 }) {
@@ -213,11 +242,13 @@ function DonutChart({
         {segments.map((segment, idx) => (
           <div key={idx} className="flex items-center gap-2">
             <span
-              className={`w-3 h-3 rounded-full ${segment.isRented ? 'ring-1 ring-offset-1 ring-offset-slate-900 ring-amber-400' : ''}`}
+              className={`w-3 h-3 rounded-full ${segment.isRented ? "ring-1 ring-offset-1 ring-offset-slate-900 ring-amber-400" : ""}`}
               style={{ backgroundColor: segment.color }}
             />
             <div>
-              <p className={`text-xs font-medium ${segment.isRented ? 'text-amber-400' : 'text-slate-400'}`}>
+              <p
+                className={`text-xs font-medium ${segment.isRented ? "text-amber-400" : "text-slate-400"}`}
+              >
                 {segment.label}
               </p>
               <p className="text-xs font-bold text-white">%{segment.value}</p>
@@ -333,7 +364,13 @@ export default function AdminDashboard() {
     // Şirket araçları için renkler (mor, turkuaz, pembe, yeşil)
     const ownedColors = ["#8b5cf6", "#06b6d4", "#ec4899", "#10b981", "#6366f1"];
     // Kiralık araçlar için renkler (turuncu tonları)
-    const rentedColors = ["#f59e0b", "#f97316", "#fb923c", "#fbbf24", "#d97706"];
+    const rentedColors = [
+      "#f59e0b",
+      "#f97316",
+      "#fb923c",
+      "#fbbf24",
+      "#d97706",
+    ];
 
     if (summary?.vehicleUtilization && summary.vehicleUtilization.length > 0) {
       // Filter only used vehicles (utilization > 0)
@@ -344,13 +381,14 @@ export default function AdminDashboard() {
       if (usedVehicles.length > 0) {
         let ownedIdx = 0;
         let rentedIdx = 0;
-        
+
         return usedVehicles.map((v: any) => {
           // Check ownership field from API, fallback to name check
-          const isRented = v.ownership === 'rented' || 
-                          v.vehicleName?.toLowerCase().includes('kiralık') || 
-                          v.plateNumber?.toLowerCase().includes('rent');
-          
+          const isRented =
+            v.ownership === "rented" ||
+            v.vehicleName?.toLowerCase().includes("kiralık") ||
+            v.plateNumber?.toLowerCase().includes("rent");
+
           let color: string;
           if (isRented) {
             color = rentedColors[rentedIdx % rentedColors.length];
@@ -359,7 +397,7 @@ export default function AdminDashboard() {
             color = ownedColors[ownedIdx % ownedColors.length];
             ownedIdx++;
           }
-          
+
           return {
             value: v.utilization || 1,
             color,
@@ -459,7 +497,9 @@ export default function AdminDashboard() {
                         className="h-6 w-6 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-200 font-medium"
                         title={`${v.vehicleName} - %${Math.round(v.utilization)}`}
                       >
-                        {v.vehicleName?.includes('Kiralık') ? 'K' + (v.vehicleName?.match(/\d+/)?.[0] || idx + 1) : v.vehicleName?.replace("Araç ", "") || idx + 1}
+                        {v.vehicleName?.includes("Kiralık")
+                          ? "K" + (v.vehicleName?.match(/\d+/)?.[0] || idx + 1)
+                          : v.vehicleName?.replace("Araç ", "") || idx + 1}
                       </div>
                     ))}
                 </div>
@@ -546,10 +586,13 @@ export default function AdminDashboard() {
                         </td>
                         <td className="p-4 min-w-[140px]">
                           <div className="flex items-center gap-2">
-                            <div className={`h-6 min-w-[24px] px-1 rounded flex items-center justify-center text-[9px] text-white whitespace-nowrap ${trip.vehicle?.ownership === 'rented' ? 'bg-amber-600' : 'bg-slate-700'}`}>
-                              {trip.vehicle?.ownership === 'rented' 
+                            <div
+                              className={`h-6 min-w-[24px] px-1 rounded flex items-center justify-center text-[9px] text-white whitespace-nowrap ${trip.vehicle?.ownership === "rented" ? "bg-amber-600" : "bg-slate-700"}`}
+                            >
+                              {trip.vehicle?.ownership === "rented"
                                 ? `K${trip.vehicle?.name?.match(/\d+/)?.[0] || ""}`
-                                : trip.vehicle?.name?.replace("Araç ", "") || "V"}
+                                : trip.vehicle?.name?.replace("Araç ", "") ||
+                                  "V"}
                             </div>
                             <span className="text-slate-300 whitespace-nowrap">
                               {trip.vehicle?.name || "Araç"}

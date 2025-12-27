@@ -453,7 +453,11 @@ export default function TripsPage() {
                           </div>
                         </td>
                         <td className="p-4 text-slate-400">
-                          {formatDate(trip.planRoute?.plan?.planDate || trip.startedAt || trip.createdAt)}
+                          {formatDate(
+                            trip.planRoute?.plan?.planDate ||
+                              trip.startedAt ||
+                              trip.createdAt
+                          )}
                         </td>
                         <td className="p-4">
                           <span
