@@ -141,9 +141,7 @@ export default function AdminLayout({
                   <p className="text-sm font-medium text-white">
                     {user.fullName}
                   </p>
-                  <p className="text-xs text-slate-300">
-                    {user.email}
-                  </p>
+                  <p className="text-xs text-slate-300">{user.email}</p>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -177,12 +175,6 @@ export default function AdminLayout({
               </span>
             </div>
             <div className="flex items-center gap-4">
-              <button className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-slate-800/50 text-slate-200 transition-colors relative">
-                <span className="material-symbols-rounded text-xl">
-                  notifications
-                </span>
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-slate-900"></span>
-              </button>
               <Link
                 href="/admin/settings"
                 className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
@@ -199,7 +191,9 @@ export default function AdminLayout({
           </header>
 
           {/* Page Content */}
-          <div className="flex-1 overflow-auto rounded-2xl glass-dark">{children}</div>
+          <div className="flex-1 overflow-auto rounded-2xl glass-dark">
+            {children}
+          </div>
         </main>
       </div>
     </div>
