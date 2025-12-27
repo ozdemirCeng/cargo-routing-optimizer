@@ -102,46 +102,52 @@ function BarChart({
   }[];
 }) {
   const maxValue = Math.max(...data.map((d) => d.value));
+  // Dinamik bar genişliği ve gap - çok fazla item varsa küçült
+  const itemCount = data.length;
+  const barWidth = itemCount <= 4 ? 'w-16 md:w-24' : itemCount <= 6 ? 'w-14 md:w-20' : 'w-12 md:w-16';
+  const gapSize = itemCount <= 4 ? 'gap-6 md:gap-12' : itemCount <= 6 ? 'gap-4 md:gap-8' : 'gap-3 md:gap-5';
 
   return (
-    <div className="flex-1 flex items-end justify-center gap-8 md:gap-16 px-4 md:px-12 pb-4 relative">
-      {/* Grid Lines */}
-      <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-10 opacity-20 z-0">
-        {[...Array(5)].map((_, i) => (
+    <div className="flex-1 overflow-x-auto overflow-y-hidden pb-2">
+      <div className={`flex items-end justify-start ${gapSize} px-4 md:px-8 pb-4 relative h-full min-w-max`}>
+        {/* Grid Lines */}
+        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-10 opacity-20 z-0">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className={`border-t ${i === 4 ? "border-slate-500" : "border-dashed border-slate-400"} w-full h-0`}
+            />
+          ))}
+        </div>
+
+        {data.map((item, idx) => (
           <div
-            key={i}
-            className={`border-t ${i === 4 ? "border-slate-500" : "border-dashed border-slate-400"} w-full h-0`}
-          />
+            key={idx}
+            className={`relative group ${barWidth} flex-shrink-0 flex flex-col justify-end h-full z-10`}
+          >
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap bg-slate-900/95 border border-primary/40 opacity-0 group-hover:opacity-100 transition-all duration-200 font-medium backdrop-blur-sm z-20">
+              ₺{item.value.toLocaleString("tr-TR")}
+            </div>
+            <div
+              className="w-full rounded-lg relative overflow-hidden transition-all duration-300 cursor-pointer bg-gradient-to-t from-blue-600 to-blue-500 group-hover:from-blue-500 group-hover:to-blue-400 group-hover:scale-105 group-hover:-translate-y-1"
+              style={{ height: `${(item.value / maxValue) * 100}%`, minHeight: '20px' }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/10" />
+              <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
+              <div className="absolute inset-y-0 left-0 w-px bg-white/20" />
+              <div className="absolute inset-y-0 right-0 w-px bg-black/20" />
+            </div>
+            <div className="mt-3 text-center">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-blue-400 group-hover:text-blue-300 transition-colors truncate">
+                {item.label}
+              </p>
+              <p className="text-[9px] mt-0.5 text-slate-500 group-hover:text-slate-400 transition-colors truncate" title={item.sublabel}>
+                {item.sublabel.length > 12 ? item.sublabel.slice(0, 10) + '...' : item.sublabel}
+              </p>
+            </div>
+          </div>
         ))}
       </div>
-
-      {data.map((item, idx) => (
-        <div
-          key={idx}
-          className="relative group w-16 md:w-24 flex flex-col justify-end h-full z-10"
-        >
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap bg-slate-900/95 border border-primary/40 opacity-0 group-hover:opacity-100 transition-all duration-200 font-medium backdrop-blur-sm">
-            ₺{item.value.toLocaleString("tr-TR")}
-          </div>
-          <div
-            className="w-full rounded-lg relative overflow-hidden transition-all duration-300 cursor-pointer bg-gradient-to-t from-blue-600 to-blue-500 group-hover:from-blue-500 group-hover:to-blue-400 group-hover:scale-105 group-hover:-translate-y-1"
-            style={{ height: `${(item.value / maxValue) * 100}%` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/10" />
-            <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
-            <div className="absolute inset-y-0 left-0 w-px bg-white/20" />
-            <div className="absolute inset-y-0 right-0 w-px bg-black/20" />
-          </div>
-          <div className="mt-4 text-center">
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-400 group-hover:text-blue-300 transition-colors">
-              {item.label}
-            </p>
-            <p className="text-[10px] mt-1 text-slate-500 group-hover:text-slate-400 transition-colors">
-              {item.sublabel}
-            </p>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

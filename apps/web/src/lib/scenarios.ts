@@ -88,7 +88,7 @@ export const scenarios: Scenario[] = [
   {
     id: "scenario1",
     name: "Senaryo 1",
-    description: "Tüm ilçelerden dengeli dağılım (113 kargo, 1445 kg)",
+    description: "Tüm ilçelerden dengeli dağılım (113 kargo, 1425 kg)",
     data: scenarioData.scenario1,
     ...calculateTotals(scenarioData.scenario1),
   },
