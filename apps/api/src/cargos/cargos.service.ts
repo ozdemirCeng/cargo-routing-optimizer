@@ -78,8 +78,10 @@ export class CargosService {
   }
 
   async findById(id: string, userId: string, role: string) {
-    const cargo = await this.prisma.cargo.findUnique({
-      where: { id },
+    const where = role === "admin" ? { id } : { id, userId };
+
+    const cargo = await this.prisma.cargo.findFirst({
+      where,
       include: {
         originStation: true,
         user: {
@@ -100,11 +102,6 @@ export class CargosService {
 
     if (!cargo) {
       throw new NotFoundException("Cargo not found");
-    }
-
-    // RBAC: User sadece kendi kargosunu görebilir
-    if (role !== "admin" && cargo.userId !== userId) {
-      throw new ForbiddenException("Access denied");
     }
 
     return cargo;
@@ -128,26 +125,86 @@ export class CargosService {
       ? this.getLocalDayRange(String(data.scheduledDate)).dayStart
       : undefined;
 
-    return this.prisma.cargo.create({
-      data: {
-        trackingCode: this.generateTrackingCode(),
-        userId,
-        originStationId: data.originStationId,
-        destinationStationId: hub?.id,
-        weightKg: data.weightKg,
-        description: data.description,
-        scheduledDate: scheduledDateParsed,
-      },
-      include: {
-        originStation: true,
-      },
+    const cargoCount =
+      typeof (data as any).cargoCount === "number" && Number.isFinite((data as any).cargoCount)
+        ? Math.max(1, Math.trunc((data as any).cargoCount))
+        : 1;
+
+    const totalWeightKg = Number(data.weightKg);
+    if (!Number.isFinite(totalWeightKg) || totalWeightKg <= 0) {
+      throw new BadRequestException("Geçersiz ağırlık");
+    }
+
+    // Tek kargo davranışı (geriye uyumluluk)
+    if (cargoCount === 1) {
+      return this.prisma.cargo.create({
+        data: {
+          trackingCode: this.generateTrackingCode(),
+          userId,
+          originStationId: data.originStationId,
+          destinationStationId: hub?.id,
+          weightKg: data.weightKg,
+          description: data.description,
+          scheduledDate: scheduledDateParsed,
+        },
+        include: {
+          originStation: true,
+        },
+      });
+    }
+
+    // Toplam ağırlığı N kargoya böl (0.01 kg hassasiyetinde), toplam korunur
+    const totalCenti = Math.round(totalWeightKg * 100);
+    if (totalCenti < cargoCount) {
+      throw new BadRequestException(
+        "Toplam ağırlık, kargo adedine göre çok düşük"
+      );
+    }
+
+    const baseCenti = Math.floor(totalCenti / cargoCount);
+    const remainder = totalCenti - baseCenti * cargoCount;
+    const weights: number[] = [];
+    for (let i = 0; i < cargoCount; i++) {
+      const centi = baseCenti + (i < remainder ? 1 : 0);
+      weights.push(centi / 100);
+    }
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const results: any[] = [];
+      for (let i = 0; i < weights.length; i++) {
+        const w = weights[i];
+        const row = await tx.cargo.create({
+          data: {
+            trackingCode: this.generateTrackingCode(),
+            userId,
+            originStationId: data.originStationId,
+            destinationStationId: hub?.id,
+            weightKg: w,
+            description: data.description,
+            scheduledDate: scheduledDateParsed,
+          },
+          include: {
+            originStation: true,
+          },
+        });
+        results.push(row);
+      }
+      return results;
     });
+
+    return {
+      createdCount: created.length,
+      totalWeightKg: Math.round(totalWeightKg * 10) / 10,
+      cargos: created,
+    };
   }
 
   // Kargonun taşındığı aracın rotasını getir (RBAC enforced)
   async getCargoRoute(cargoId: string, userId: string, role: string) {
-    const cargo = await this.prisma.cargo.findUnique({
-      where: { id: cargoId },
+    const where = role === "admin" ? { id: cargoId } : { id: cargoId, userId };
+
+    const cargo = await this.prisma.cargo.findFirst({
+      where,
       include: {
         planRouteCargos: {
           include: {
@@ -166,21 +223,55 @@ export class CargosService {
       throw new NotFoundException("Cargo not found");
     }
 
-    // RBAC: User sadece kendi kargosunun rotasını görebilir
-    if (role !== "admin" && cargo.userId !== userId) {
-      throw new ForbiddenException("Bu kargo size ait değil");
-    }
-
     if (!cargo.planRouteCargos.length) {
       return null; // Henüz atanmamış
     }
 
     const planRoute = cargo.planRouteCargos[0].planRoute;
 
+    // Bu route'a atanmış tüm kargoları alıp durak bazında say/agirlik çıkar
+    const routeCargos = await this.prisma.planRouteCargo.findMany({
+      where: { planRouteId: planRoute.id },
+      include: {
+        cargo: {
+          select: {
+            originStationId: true,
+            weightKg: true,
+          },
+        },
+      },
+    });
+
+    const stationCargoStats = new Map<
+      string,
+      { cargoCount: number; totalWeightKg: number }
+    >();
+
+    for (const rc of routeCargos) {
+      const stationId = rc.cargo.originStationId;
+      const weight = Number(rc.cargo.weightKg);
+      const current = stationCargoStats.get(stationId) ?? {
+        cargoCount: 0,
+        totalWeightKg: 0,
+      };
+      stationCargoStats.set(stationId, {
+        cargoCount: current.cargoCount + 1,
+        totalWeightKg: current.totalWeightKg + (Number.isFinite(weight) ? weight : 0),
+      });
+    }
+
     // Route stations'ı çöz
     const stationIds = planRoute.routeStations;
     const stations = await this.prisma.station.findMany({
       where: { id: { in: stationIds } },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        latitude: true,
+        longitude: true,
+        isHub: true,
+      },
     });
 
     type StationType = (typeof stations)[number];
@@ -194,16 +285,33 @@ export class CargosService {
           order: index,
           id,
           name: "Unknown",
+          code: "",
+          isHub: false,
           latitude: null,
           longitude: null,
+          cargoCount: undefined,
+          totalWeightKg: undefined,
         };
       }
+
+      const stats = stationCargoStats.get(station.id);
+      const cargoCount = station.isHub ? undefined : stats?.cargoCount;
+      const totalWeightKg = station.isHub
+        ? undefined
+        : stats
+          ? Math.round(stats.totalWeightKg * 10) / 10
+          : undefined;
+
       return {
         order: index,
         id: station.id,
         name: station.name,
+        code: station.code,
+        isHub: station.isHub,
         latitude: station.latitude,
         longitude: station.longitude,
+        cargoCount,
+        totalWeightKg,
       };
     });
 

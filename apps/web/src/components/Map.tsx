@@ -92,6 +92,10 @@ export default function Map({
 
     // Yeni marker'ları ekle
     stations.forEach((station) => {
+      if (!Number.isFinite(station.latitude) || !Number.isFinite(station.longitude)) {
+        return;
+      }
+
       const el = document.createElement('div');
       el.className = 'station-marker';
       el.style.cursor = 'pointer';

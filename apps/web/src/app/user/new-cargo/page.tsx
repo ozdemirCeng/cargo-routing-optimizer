@@ -85,6 +85,7 @@ export default function NewCargoPage() {
     e.preventDefault();
     createMutation.mutate({
       originStationId: formData.originStationId,
+      cargoCount: Math.max(1, parseInt(formData.cargoCount || "1", 10) || 1),
       weightKg: parseFloat(formData.weightKg),
       description: formData.description,
       scheduledDate: formData.scheduledDate || tomorrowStr,

@@ -61,15 +61,45 @@ function TrackCargoContent() {
   const routeStations = Array.isArray((route as any)?.stations)
     ? ((route as any).stations as any[])
     : [];
-  const mapStations =
-    routeStations.map((s: any) => ({
-      id: s.id,
-      name: s.name,
-      code: s.code || "",
-      latitude: Number(s.latitude),
-      longitude: Number(s.longitude),
-      isHub: s.isHub,
-    })) || [];
+  const mapStations = routeStations
+    .map((s: any) => {
+      const latitude = Number(s.latitude);
+      const longitude = Number(s.longitude);
+
+      const cargoCountRaw =
+        s.cargoCount === null || s.cargoCount === undefined
+          ? undefined
+          : Number(s.cargoCount);
+      const cargoCount = Number.isFinite(cargoCountRaw)
+        ? cargoCountRaw
+        : undefined;
+
+      const totalWeightRaw =
+        s.totalWeightKg === null || s.totalWeightKg === undefined
+          ? undefined
+          : Number(s.totalWeightKg);
+      const totalWeightKg = Number.isFinite(totalWeightRaw)
+        ? totalWeightRaw
+        : undefined;
+
+      return {
+        id: String(s.id),
+        name: String(s.name ?? ""),
+        code: String(s.code ?? ""),
+        latitude,
+        longitude,
+        isHub: Boolean(s.isHub),
+        cargoCount,
+        totalWeightKg,
+      };
+    })
+    .filter(
+      (s: any) =>
+        Number.isFinite(s.latitude) &&
+        Number.isFinite(s.longitude) &&
+        // (0,0) genelde invalid; Unknown istasyonlar haritada gozukmesin
+        !(s.latitude === 0 && s.longitude === 0)
+    );
 
   const mapRoutes = route
     ? [
