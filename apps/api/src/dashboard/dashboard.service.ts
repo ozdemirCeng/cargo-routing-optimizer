@@ -64,39 +64,33 @@ export class DashboardService {
       WHERE p.status IN ('active', 'completed')
     `;
 
-    // Get vehicle capacity utilization per vehicle (only for vehicles used in plans)
+    // Get vehicle capacity utilization per vehicle (including rented vehicles from plan_routes)
     const vehicleUtilization = await this.prisma.$queryRaw<
       Array<{
         vehicle_id: string;
         vehicle_name: string;
         plate_number: string;
         capacity_kg: number;
+        ownership: string;
         total_weight: number;
         utilization: number;
         is_used: boolean;
       }>
     >`
       SELECT 
-        v.id as vehicle_id,
+        pr.vehicle_id,
         v.name as vehicle_name,
         v.plate_number,
         v.capacity_kg,
-        COALESCE(sub.total_weight, 0) as total_weight,
-        COALESCE(sub.utilization, 0) as utilization,
-        CASE WHEN sub.vehicle_id IS NOT NULL THEN true ELSE false END as is_used
-      FROM vehicles v
-      LEFT JOIN (
-        SELECT 
-          pr.vehicle_id,
-          SUM(pr.total_weight_kg) as total_weight,
-          AVG((pr.total_weight_kg / v2.capacity_kg) * 100) as utilization
-        FROM plan_routes pr
-        JOIN vehicles v2 ON v2.id = pr.vehicle_id
-        JOIN plans p ON p.id = pr.plan_id AND p.status IN ('active', 'completed')
-        GROUP BY pr.vehicle_id
-      ) sub ON sub.vehicle_id = v.id
-      WHERE v.is_active = TRUE
-      ORDER BY sub.utilization DESC NULLS LAST, v.name
+        v.ownership,
+        SUM(pr.total_weight_kg) as total_weight,
+        AVG((pr.total_weight_kg / v.capacity_kg) * 100) as utilization,
+        true as is_used
+      FROM plan_routes pr
+      JOIN vehicles v ON v.id = pr.vehicle_id
+      JOIN plans p ON p.id = pr.plan_id AND p.status IN ('active', 'completed')
+      GROUP BY pr.vehicle_id, v.name, v.plate_number, v.capacity_kg, v.ownership
+      ORDER BY utilization DESC
     `;
 
     const r = rows?.[0];
@@ -122,6 +116,7 @@ export class DashboardService {
         vehicleName: v.vehicle_name,
         plateNumber: v.plate_number,
         capacityKg: Number(v.capacity_kg),
+        ownership: v.ownership,
         totalWeight: Number(v.total_weight),
         utilization: Math.round(Number(v.utilization)),
         isUsed: v.is_used,
@@ -136,7 +131,13 @@ export class DashboardService {
       where,
       include: {
         vehicle: true,
-        plan: true,
+        plan: {
+          select: {
+            id: true,
+            status: true,
+            costPerKm: true,
+          },
+        },
         cargos: {
           include: {
             cargo: {
@@ -149,40 +150,85 @@ export class DashboardService {
       },
     });
 
-    const vehicleCosts = routes.map((route) => {
-      const usersMap = new Map<
-        string,
-        { id: string; fullName: string; email: string }
-      >();
+    // Filter only active/completed plans
+    const activeRoutes = routes.filter(
+      (r) => r.plan.status === "active" || r.plan.status === "completed"
+    );
+
+    // Group by vehicle and sum costs
+    const vehicleMap = new Map<
+      string,
+      {
+        vehicleId: string;
+        vehicleName: string;
+        plateNumber: string;
+        ownership: string;
+        capacityKg: number;
+        totalCost: number;
+        totalDistanceKm: number;
+        totalWeightKg: number;
+        cargoCount: number;
+        routeCount: number;
+        users: Map<string, { id: string; fullName: string; email: string }>;
+      }
+    >();
+
+    activeRoutes.forEach((route) => {
+      const vehicleId = route.vehicleId;
+      let existing = vehicleMap.get(vehicleId);
+
+      if (!existing) {
+        existing = {
+          vehicleId: route.vehicleId,
+          vehicleName: route.vehicle.name,
+          plateNumber: route.vehicle.plateNumber,
+          ownership: route.vehicle.ownership,
+          capacityKg: Number(route.vehicle.capacityKg),
+          totalCost: 0,
+          totalDistanceKm: 0,
+          totalWeightKg: 0,
+          cargoCount: 0,
+          routeCount: 0,
+          users: new Map(),
+        };
+        vehicleMap.set(vehicleId, existing);
+      }
+
+      existing.totalCost += Number(route.totalCost);
+      existing.totalDistanceKm += Number(route.totalDistanceKm);
+      existing.totalWeightKg += Number(route.totalWeightKg);
+      existing.cargoCount += route.cargoCount;
+      existing.routeCount += 1;
+
+      // Collect unique users
       route.cargos.forEach((c) => {
-        if (c.cargo.user && !usersMap.has(c.cargo.user.id)) {
-          usersMap.set(c.cargo.user.id, c.cargo.user);
+        if (c.cargo.user && !existing!.users.has(c.cargo.user.id)) {
+          existing!.users.set(c.cargo.user.id, c.cargo.user);
         }
       });
-      const users = Array.from(usersMap.values());
-      return {
-        vehicleId: route.vehicleId,
-        vehicleName: route.vehicle.name,
-        plateNumber: route.vehicle.plateNumber,
-        distanceCost:
-          Number(route.totalDistanceKm) * Number(route.plan.costPerKm || 1),
-        rentalCost:
-          route.vehicle.ownership === "rented"
-            ? Number(route.vehicle.rentalCost)
-            : 0,
-        totalCost: Number(route.totalCost),
-        cargoCount: route.cargoCount,
-        totalWeightKg: Number(route.totalWeightKg),
+    });
+
+    // Convert map to array and calculate derived values
+    const vehicleCosts = Array.from(vehicleMap.values())
+      .map((v) => ({
+        vehicleId: v.vehicleId,
+        vehicleName: v.vehicleName,
+        plateNumber: v.plateNumber,
+        totalCost: v.totalCost,
+        totalDistanceKm: v.totalDistanceKm,
+        totalWeightKg: v.totalWeightKg,
+        cargoCount: v.cargoCount,
+        routeCount: v.routeCount,
         capacityUtilization:
-          (Number(route.totalWeightKg) / Number(route.vehicle.capacityKg)) *
-          100,
-        users: users.map((u) => ({
+          v.capacityKg > 0 ? (v.totalWeightKg / v.capacityKg) * 100 : 0,
+        isRented: v.ownership === "rented",
+        users: Array.from(v.users.values()).map((u) => ({
           id: u.id,
           name: u.fullName,
           email: u.email,
         })),
-      };
-    });
+      }))
+      .sort((a, b) => b.totalCost - a.totalCost); // Sort by cost descending
 
     const totalCost = vehicleCosts.reduce((sum, v) => sum + v.totalCost, 0);
 

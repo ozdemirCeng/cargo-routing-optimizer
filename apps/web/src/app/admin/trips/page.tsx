@@ -18,6 +18,18 @@ interface Trip {
     name: string;
   };
   planId?: string;
+  planRoute?: {
+    id: string;
+    cargoCount: number;
+    totalDistanceKm: number;
+    totalCost: number;
+    totalWeightKg: number;
+    routeOrder: number;
+    plan?: {
+      id: string;
+      planDate: string;
+    };
+  };
   status: string;
   startedAt?: string;
   endedAt?: string;
@@ -385,9 +397,6 @@ export default function TripsPage() {
                     Araç Bilgisi
                   </th>
                   <th className="p-4 text-xs font-semibold tracking-wider text-slate-400 uppercase">
-                    Rota
-                  </th>
-                  <th className="p-4 text-xs font-semibold tracking-wider text-slate-400 uppercase">
                     Başlangıç
                   </th>
                   <th className="p-4 text-xs font-semibold tracking-wider text-slate-400 uppercase">
@@ -402,7 +411,7 @@ export default function TripsPage() {
                 {paginatedTrips.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={5}
                       className="text-center py-12 text-slate-400"
                     >
                       <div className="flex flex-col items-center gap-2">
@@ -443,17 +452,8 @@ export default function TripsPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2 text-slate-300">
-                            <span className="font-medium">{firstStation}</span>
-                            <span className="material-symbols-rounded text-[16px] text-slate-500">
-                              arrow_forward
-                            </span>
-                            <span className="font-medium">{lastStation}</span>
-                          </div>
-                        </td>
                         <td className="p-4 text-slate-400">
-                          {formatDate(trip.startedAt || trip.createdAt)}
+                          {formatDate(trip.planRoute?.plan?.planDate || trip.startedAt || trip.createdAt)}
                         </td>
                         <td className="p-4">
                           <span

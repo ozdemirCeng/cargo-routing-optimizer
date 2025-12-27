@@ -101,52 +101,51 @@ function BarChart({
     value: number;
   }[];
 }) {
-  const maxValue = Math.max(...data.map((d) => d.value));
+  const maxValue = Math.max(...data.map((d) => d.value), 1);
   // Dinamik bar genişliği ve gap - çok fazla item varsa küçült
   const itemCount = data.length;
   const barWidth = itemCount <= 4 ? 'w-16 md:w-24' : itemCount <= 6 ? 'w-14 md:w-20' : 'w-12 md:w-16';
   const gapSize = itemCount <= 4 ? 'gap-6 md:gap-12' : itemCount <= 6 ? 'gap-4 md:gap-8' : 'gap-3 md:gap-5';
+  
+  // Max bar height in pixels
+  const maxBarHeight = 180;
 
   return (
-    <div className="flex-1 overflow-x-auto overflow-y-hidden pb-2">
-      <div className={`flex items-end justify-start ${gapSize} px-4 md:px-8 pb-4 relative h-full min-w-max`}>
-        {/* Grid Lines */}
-        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-10 opacity-20 z-0">
-          {[...Array(5)].map((_, i) => (
+    <div className="flex-1 overflow-x-auto overflow-y-visible">
+      <div className={`flex items-end ${gapSize} px-4 md:px-8 pt-10 pb-4 min-w-max h-full`}>
+        {data.map((item, idx) => {
+          const barHeight = Math.max((item.value / maxValue) * maxBarHeight, 24);
+          return (
             <div
-              key={i}
-              className={`border-t ${i === 4 ? "border-slate-500" : "border-dashed border-slate-400"} w-full h-0`}
-            />
-          ))}
-        </div>
-
-        {data.map((item, idx) => (
-          <div
-            key={idx}
-            className={`relative group ${barWidth} flex-shrink-0 flex flex-col justify-end h-full z-10`}
-          >
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap bg-slate-900/95 border border-primary/40 opacity-0 group-hover:opacity-100 transition-all duration-200 font-medium backdrop-blur-sm z-20">
-              ₺{item.value.toLocaleString("tr-TR")}
-            </div>
-            <div
-              className="w-full rounded-lg relative overflow-hidden transition-all duration-300 cursor-pointer bg-gradient-to-t from-blue-600 to-blue-500 group-hover:from-blue-500 group-hover:to-blue-400 group-hover:scale-105 group-hover:-translate-y-1"
-              style={{ height: `${(item.value / maxValue) * 100}%`, minHeight: '20px' }}
+              key={idx}
+              className={`relative group ${barWidth} flex-shrink-0 flex flex-col items-center`}
             >
-              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/10" />
-              <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
-              <div className="absolute inset-y-0 left-0 w-px bg-white/20" />
-              <div className="absolute inset-y-0 right-0 w-px bg-black/20" />
+              {/* Tooltip */}
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap bg-slate-800 border border-blue-500/50 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 font-semibold z-50">
+                ₺{item.value.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              {/* Bar */}
+              <div
+                className="w-full rounded-t-lg relative overflow-hidden transition-all duration-300 cursor-pointer bg-gradient-to-t from-blue-600 to-blue-500 group-hover:from-blue-500 group-hover:to-blue-400 group-hover:shadow-lg group-hover:shadow-blue-500/30"
+                style={{ height: `${barHeight}px` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/10" />
+                <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
+                <div className="absolute inset-y-0 left-0 w-px bg-white/20" />
+                <div className="absolute inset-y-0 right-0 w-px bg-black/20" />
+              </div>
+              {/* Label */}
+              <div className="mt-3 text-center w-full">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-blue-400 group-hover:text-blue-300 transition-colors truncate">
+                  {item.label}
+                </p>
+                <p className="text-[9px] mt-0.5 text-slate-500 group-hover:text-slate-400 transition-colors truncate" title={item.sublabel}>
+                  {item.sublabel.length > 12 ? item.sublabel.slice(0, 10) + '...' : item.sublabel}
+                </p>
+              </div>
             </div>
-            <div className="mt-3 text-center">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-blue-400 group-hover:text-blue-300 transition-colors truncate">
-                {item.label}
-              </p>
-              <p className="text-[9px] mt-0.5 text-slate-500 group-hover:text-slate-400 transition-colors truncate" title={item.sublabel}>
-                {item.sublabel.length > 12 ? item.sublabel.slice(0, 10) + '...' : item.sublabel}
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -158,7 +157,7 @@ function DonutChart({
   centerValue,
   centerLabel,
 }: {
-  segments: { value: number; color: string; label: string }[];
+  segments: { value: number; color: string; label: string; isRented?: boolean }[];
   centerValue: string;
   centerLabel: string;
 }) {
@@ -210,15 +209,15 @@ function DonutChart({
         </div>
       </div>
 
-      <div className="w-full mt-8 flex justify-center gap-6">
+      <div className="w-full mt-6 flex flex-wrap justify-center gap-4">
         {segments.map((segment, idx) => (
           <div key={idx} className="flex items-center gap-2">
             <span
-              className="w-3 h-3 rounded-full"
+              className={`w-3 h-3 rounded-full ${segment.isRented ? 'ring-1 ring-offset-1 ring-offset-slate-900 ring-amber-400' : ''}`}
               style={{ backgroundColor: segment.color }}
             />
             <div>
-              <p className="text-xs text-slate-400 font-medium">
+              <p className={`text-xs font-medium ${segment.isRented ? 'text-amber-400' : 'text-slate-400'}`}>
                 {segment.label}
               </p>
               <p className="text-xs font-bold text-white">%{segment.value}</p>
@@ -331,7 +330,10 @@ export default function AdminDashboard() {
 
   // Donut chart segments from real vehicle utilization data - only show used vehicles
   const donutSegments = useMemo(() => {
-    const colors = ["#8b5cf6", "#06b6d4", "#ec4899", "#f59e0b", "#10b981"];
+    // Şirket araçları için renkler (mor, turkuaz, pembe, yeşil)
+    const ownedColors = ["#8b5cf6", "#06b6d4", "#ec4899", "#10b981", "#6366f1"];
+    // Kiralık araçlar için renkler (turuncu tonları)
+    const rentedColors = ["#f59e0b", "#f97316", "#fb923c", "#fbbf24", "#d97706"];
 
     if (summary?.vehicleUtilization && summary.vehicleUtilization.length > 0) {
       // Filter only used vehicles (utilization > 0)
@@ -340,16 +342,36 @@ export default function AdminDashboard() {
       );
 
       if (usedVehicles.length > 0) {
-        return usedVehicles.map((v: any, idx: number) => ({
-          value: v.utilization || 1,
-          color: colors[idx % colors.length],
-          label: v.vehicleName || `Araç ${idx + 1}`,
-        }));
+        let ownedIdx = 0;
+        let rentedIdx = 0;
+        
+        return usedVehicles.map((v: any) => {
+          // Check ownership field from API, fallback to name check
+          const isRented = v.ownership === 'rented' || 
+                          v.vehicleName?.toLowerCase().includes('kiralık') || 
+                          v.plateNumber?.toLowerCase().includes('rent');
+          
+          let color: string;
+          if (isRented) {
+            color = rentedColors[rentedIdx % rentedColors.length];
+            rentedIdx++;
+          } else {
+            color = ownedColors[ownedIdx % ownedColors.length];
+            ownedIdx++;
+          }
+          
+          return {
+            value: v.utilization || 1,
+            color,
+            label: v.vehicleName || `Araç`,
+            isRented,
+          };
+        });
       }
     }
 
     // Fallback when no data
-    return [{ value: 1, color: "#8b5cf6", label: "Veri Yok" }];
+    return [{ value: 1, color: "#8b5cf6", label: "Veri Yok", isRented: false }];
   }, [summary]);
 
   // Show loading only on initial load, not on refetch
@@ -401,12 +423,9 @@ export default function AdminDashboard() {
             <KPICard
               title="Toplam Maliyet"
               value={`₺${stats.totalCost.toLocaleString("tr-TR")}`}
-              icon="trending_down"
+              icon="payments"
               iconBg="bg-emerald-500/10"
               iconColor="text-emerald-400"
-              change={12}
-              changeType="down"
-              changeLabel="geçen haftaya göre"
             />
           </div>
 
@@ -418,8 +437,6 @@ export default function AdminDashboard() {
               icon="route"
               iconBg="bg-blue-500/10"
               iconColor="text-blue-400"
-              progress={75}
-              progressLabel="aylık limitin %75'i"
             />
           </div>
 
@@ -427,29 +444,24 @@ export default function AdminDashboard() {
             <KPICard
               title="Kullanılan Araç"
               value={`${stats.vehiclesUsed}`}
-              unit={`/${stats.totalVehicles}`}
+              unit="araç"
               icon="local_shipping"
               iconBg="bg-amber-500/10"
               iconColor="text-amber-400"
               extra={
-                <div className="flex -space-x-2 mt-4">
+                <div className="flex flex-wrap gap-1.5 mt-3 justify-center w-full">
                   {summary?.vehicleUtilization
                     ?.filter((v: any) => v.isUsed)
-                    .slice(0, 3)
+                    .slice(0, 5)
                     .map((v: any, idx: number) => (
                       <div
-                        key={v.vehicleId}
-                        className="h-8 w-8 rounded-full border-2 border-[#1e293b] bg-slate-700 flex items-center justify-center text-xs text-white"
-                        title={`${v.vehicleName} - %${v.utilization}`}
+                        key={v.vehicleId || idx}
+                        className="h-6 w-6 rounded-full bg-slate-600 flex items-center justify-center text-[9px] text-slate-200 font-medium"
+                        title={`${v.vehicleName} - %${Math.round(v.utilization)}`}
                       >
-                        {v.vehicleName?.replace("Araç ", "") || idx + 1}
+                        {v.vehicleName?.includes('Kiralık') ? 'K' + (v.vehicleName?.match(/\d+/)?.[0] || idx + 1) : v.vehicleName?.replace("Araç ", "") || idx + 1}
                       </div>
                     ))}
-                  {stats.totalVehicles - stats.vehiclesUsed > 0 && (
-                    <div className="h-8 w-8 rounded-full border-2 border-[#1e293b] bg-slate-800 flex items-center justify-center text-xs text-slate-400">
-                      +{stats.totalVehicles - stats.vehiclesUsed}
-                    </div>
-                  )}
                 </div>
               }
             />
@@ -462,9 +474,6 @@ export default function AdminDashboard() {
               icon="inventory_2"
               iconBg="bg-purple-500/10"
               iconColor="text-purple-400"
-              change={4}
-              changeType="up"
-              changeLabel="optimizasyon etkisi"
             />
           </div>
 
@@ -535,12 +544,14 @@ export default function AdminDashboard() {
                         <td className="p-4 font-medium text-white group-hover:text-primary transition-colors">
                           #{trip.id.slice(0, 8).toUpperCase()}
                         </td>
-                        <td className="p-4">
+                        <td className="p-4 min-w-[140px]">
                           <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded bg-slate-700 flex items-center justify-center text-[10px] text-white">
-                              {trip.vehicle?.name?.replace("Araç ", "") || "V"}
+                            <div className={`h-6 min-w-[24px] px-1 rounded flex items-center justify-center text-[9px] text-white whitespace-nowrap ${trip.vehicle?.ownership === 'rented' ? 'bg-amber-600' : 'bg-slate-700'}`}>
+                              {trip.vehicle?.ownership === 'rented' 
+                                ? `K${trip.vehicle?.name?.match(/\d+/)?.[0] || ""}`
+                                : trip.vehicle?.name?.replace("Araç ", "") || "V"}
                             </div>
-                            <span className="text-slate-300">
+                            <span className="text-slate-300 whitespace-nowrap">
                               {trip.vehicle?.name || "Araç"}
                             </span>
                           </div>

@@ -33,7 +33,7 @@ export class TripsService {
         completedAt: true,
         createdAt: true,
         vehicle: {
-          select: { id: true, name: true, plateNumber: true },
+          select: { id: true, name: true, plateNumber: true, ownership: true },
         },
         planRoute: {
           select: {
