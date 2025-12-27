@@ -21,7 +21,7 @@ export class TripsService {
       if (filters.endDate) where.createdAt.lte = filters.endDate;
     }
 
-    // Simplified query for list view - no heavy includes
+    // Simplified query for list view - with route info
     return this.prisma.trip.findMany({
       where,
       take: filters?.limit || 20,
@@ -40,6 +40,12 @@ export class TripsService {
             id: true,
             cargoCount: true,
             totalDistanceKm: true,
+            totalCost: true,
+            totalWeightKg: true,
+            routeOrder: true,
+            plan: {
+              select: { id: true, planDate: true },
+            },
           },
         },
       },
@@ -73,6 +79,23 @@ export class TripsService {
         },
       },
     });
+
+    // routePolyline ve routeDetails ekle
+    if (trip?.planRoute) {
+      const fullPlanRoute = await this.prisma.planRoute.findUnique({
+        where: { id: trip.planRoute.id },
+        select: {
+          routePolyline: true,
+          routeDetails: true,
+          routeStations: true,
+        },
+      });
+      if (fullPlanRoute) {
+        (trip.planRoute as any).routePolyline = fullPlanRoute.routePolyline;
+        (trip.planRoute as any).routeDetails = fullPlanRoute.routeDetails;
+        (trip.planRoute as any).routeStations = fullPlanRoute.routeStations;
+      }
+    }
 
     if (!trip) {
       throw new NotFoundException("Trip not found");

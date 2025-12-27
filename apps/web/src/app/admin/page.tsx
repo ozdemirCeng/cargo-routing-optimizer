@@ -99,7 +99,6 @@ function BarChart({
     label: string;
     sublabel: string;
     value: number;
-    highlight?: boolean;
   }[];
 }) {
   const maxValue = Math.max(...data.map((d) => d.value));
@@ -121,37 +120,23 @@ function BarChart({
           key={idx}
           className="relative group w-16 md:w-24 flex flex-col justify-end h-full z-10"
         >
-          <div
-            className={`absolute -top-10 left-1/2 -translate-x-1/2 text-white text-xs px-2 py-1 rounded whitespace-nowrap border ${
-              item.highlight
-                ? "bg-primary opacity-100 shadow-lg shadow-primary/20 font-bold"
-                : "bg-slate-800 border-slate-700 opacity-0 group-hover:opacity-100"
-            } transition-opacity`}
-          >
-            ₺{item.value.toLocaleString("tr-TR")} Maliyet
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap bg-slate-900/95 border border-primary/40 opacity-0 group-hover:opacity-100 transition-all duration-200 font-medium backdrop-blur-sm">
+            ₺{item.value.toLocaleString("tr-TR")}
           </div>
           <div
-            className={`w-full rounded-t-lg relative overflow-hidden transition-colors cursor-pointer ${
-              item.highlight
-                ? "bg-primary shadow-[0_0_20px_rgba(19,91,236,0.4)] hover:bg-blue-600"
-                : "bg-slate-700/60 hover:bg-slate-600/80"
-            }`}
+            className="w-full rounded-lg relative overflow-hidden transition-all duration-300 cursor-pointer bg-gradient-to-t from-blue-600 to-blue-500 group-hover:from-blue-500 group-hover:to-blue-400 group-hover:scale-105 group-hover:-translate-y-1"
             style={{ height: `${(item.value / maxValue) * 100}%` }}
           >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-            {item.highlight && (
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-white/50" />
-            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-white/10" />
+            <div className="absolute inset-x-0 top-0 h-px bg-white/40" />
+            <div className="absolute inset-y-0 left-0 w-px bg-white/20" />
+            <div className="absolute inset-y-0 right-0 w-px bg-black/20" />
           </div>
           <div className="mt-4 text-center">
-            <p
-              className={`text-xs font-bold uppercase tracking-wider ${item.highlight ? "text-primary" : "text-slate-400"}`}
-            >
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-400 group-hover:text-blue-300 transition-colors">
               {item.label}
             </p>
-            <p
-              className={`text-[10px] mt-1 ${item.highlight ? "text-primary/60" : "text-slate-600"}`}
-            >
+            <p className="text-[10px] mt-1 text-slate-500 group-hover:text-slate-400 transition-colors">
               {item.sublabel}
             </p>
           </div>
@@ -230,9 +215,7 @@ function DonutChart({
               <p className="text-xs text-slate-400 font-medium">
                 {segment.label}
               </p>
-              <p className="text-xs font-bold text-white">
-                {Math.round((segment.value / total) * 100)}%
-              </p>
+              <p className="text-xs font-bold text-white">%{segment.value}</p>
             </div>
           </div>
         ))}
@@ -303,60 +286,65 @@ export default function AdminDashboard() {
     retry: 2,
   });
 
-  // Calculate stats
+  // Calculate stats from real data
   const stats = useMemo(() => {
     const totalCost = summary?.totalCostToday || 0;
     const totalDistance = summary?.totalDistanceToday || 0;
-    const activeVehicles = summary?.activeTrips || 0;
-    const totalVehicles = summary?.totalVehicles || 5;
-    const avgLoad = summary?.avgLoadPercentage || 82;
+    const vehiclesUsed = summary?.vehiclesUsed || 0;
+    const totalVehicles = summary?.totalVehicles || 0;
+    const avgLoad = summary?.avgLoadPercentage || 0;
 
-    return { totalCost, totalDistance, activeVehicles, totalVehicles, avgLoad };
+    return { totalCost, totalDistance, vehiclesUsed, totalVehicles, avgLoad };
   }, [summary]);
 
-  // Bar chart data from cost analysis
+  // Bar chart data from cost analysis - use real scenario data
   const barChartData = useMemo(() => {
-    if (!costAnalysis) {
+    if (
+      !costAnalysis ||
+      !costAnalysis.vehicleCosts ||
+      costAnalysis.vehicleCosts.length === 0
+    ) {
+      // Show message when no data
       return [
         {
-          label: "Senaryo 1",
-          sublabel: "Baseline",
-          value: 1850,
-          highlight: false,
-        },
-        {
-          label: "Senaryo 2",
-          sublabel: "Heuristic",
-          value: 1540,
-          highlight: false,
-        },
-        {
-          label: "Mevcut",
-          sublabel: "Optimized",
-          value: stats.totalCost || 1250,
+          label: "Veri Yok",
+          sublabel: "Plan oluşturun",
+          value: 0,
           highlight: true,
         },
       ];
     }
-    const scenarios = Array.isArray((costAnalysis as any)?.scenarios)
-      ? ((costAnalysis as any).scenarios as any[])
-      : [];
-    return scenarios.map((s: any, idx: number) => ({
-      label: s.name || `Senaryo ${idx + 1}`,
-      sublabel: s.type || "Model",
-      value: s.cost || 0,
-      highlight: s.isCurrent || idx === scenarios.length - 1,
-    }));
-  }, [costAnalysis, stats.totalCost]);
 
-  // Donut chart segments
+    // Show vehicle costs from real data
+    return costAnalysis.vehicleCosts.map((v: any, idx: number) => ({
+      label: v.vehicleName || `Araç ${idx + 1}`,
+      sublabel: v.plateNumber || "",
+      value: v.totalCost || 0,
+    }));
+  }, [costAnalysis]);
+
+  // Donut chart segments from real vehicle utilization data - only show used vehicles
   const donutSegments = useMemo(() => {
-    return [
-      { value: 33, color: "#8b5cf6", label: "Araç A" },
-      { value: 33, color: "#06b6d4", label: "Araç B" },
-      { value: 28, color: "#ec4899", label: "Araç C" },
-    ];
-  }, []);
+    const colors = ["#8b5cf6", "#06b6d4", "#ec4899", "#f59e0b", "#10b981"];
+
+    if (summary?.vehicleUtilization && summary.vehicleUtilization.length > 0) {
+      // Filter only used vehicles (utilization > 0)
+      const usedVehicles = summary.vehicleUtilization.filter(
+        (v: any) => v.isUsed && v.utilization > 0
+      );
+
+      if (usedVehicles.length > 0) {
+        return usedVehicles.map((v: any, idx: number) => ({
+          value: v.utilization || 1,
+          color: colors[idx % colors.length],
+          label: v.vehicleName || `Araç ${idx + 1}`,
+        }));
+      }
+    }
+
+    // Fallback when no data
+    return [{ value: 1, color: "#8b5cf6", label: "Veri Yok" }];
+  }, [summary]);
 
   // Show loading only on initial load, not on refetch
   if (summaryLoading && !summary) {
@@ -431,27 +419,29 @@ export default function AdminDashboard() {
 
           <div className="col-span-1 md:col-span-1 lg:col-span-1 xl:col-span-3">
             <KPICard
-              title="Aktif Araçlar"
-              value={`${stats.activeVehicles}`}
+              title="Kullanılan Araç"
+              value={`${stats.vehiclesUsed}`}
               unit={`/${stats.totalVehicles}`}
               icon="local_shipping"
               iconBg="bg-amber-500/10"
               iconColor="text-amber-400"
               extra={
                 <div className="flex -space-x-2 mt-4">
-                  {["A", "B", "C"]
-                    .slice(0, stats.activeVehicles)
-                    .map((letter) => (
+                  {summary?.vehicleUtilization
+                    ?.filter((v: any) => v.isUsed)
+                    .slice(0, 3)
+                    .map((v: any, idx: number) => (
                       <div
-                        key={letter}
+                        key={v.vehicleId}
                         className="h-8 w-8 rounded-full border-2 border-[#1e293b] bg-slate-700 flex items-center justify-center text-xs text-white"
+                        title={`${v.vehicleName} - %${v.utilization}`}
                       >
-                        {letter}
+                        {v.vehicleName?.replace("Araç ", "") || idx + 1}
                       </div>
                     ))}
-                  {stats.totalVehicles - stats.activeVehicles > 0 && (
+                  {stats.totalVehicles - stats.vehiclesUsed > 0 && (
                     <div className="h-8 w-8 rounded-full border-2 border-[#1e293b] bg-slate-800 flex items-center justify-center text-xs text-slate-400">
-                      +{stats.totalVehicles - stats.activeVehicles}
+                      +{stats.totalVehicles - stats.vehiclesUsed}
                     </div>
                   )}
                 </div>
@@ -484,9 +474,6 @@ export default function AdminDashboard() {
                   Optimizasyon modelleri ile mevcut durum karşılaştırması
                 </p>
               </div>
-              <button className="text-xs font-medium text-primary bg-primary/10 px-3 py-1.5 rounded hover:bg-primary/20 transition-colors">
-                Rapor İndir
-              </button>
             </div>
             <BarChart data={barChartData} />
           </div>
@@ -530,134 +517,65 @@ export default function AdminDashboard() {
                     <th className="p-4 font-medium">Rota</th>
                     <th className="p-4 font-medium">Maliyet</th>
                     <th className="p-4 font-medium text-right">Durum</th>
-                    <th className="p-4 font-medium text-center">İşlem</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm divide-y divide-white/5">
-                  {trips && trips.length > 0
-                    ? trips.slice(0, 5).map((trip: any) => (
-                        <tr
-                          key={trip.id}
-                          className="hover:bg-slate-800/30 transition-colors group"
-                        >
-                          <td className="p-4 font-medium text-white group-hover:text-primary transition-colors">
-                            #{trip.id.slice(0, 8).toUpperCase()}
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <div className="h-6 w-6 rounded bg-slate-700 flex items-center justify-center text-[10px] text-white">
-                                {trip.vehicle?.name?.charAt(0) || "V"}
-                              </div>
-                              <span className="text-slate-300">
-                                {trip.vehicle?.name || "Araç"}
-                              </span>
+                  {trips && trips.length > 0 ? (
+                    trips.slice(0, 5).map((trip: any) => (
+                      <tr
+                        key={trip.id}
+                        className="hover:bg-slate-800/30 transition-colors group"
+                      >
+                        <td className="p-4 font-medium text-white group-hover:text-primary transition-colors">
+                          #{trip.id.slice(0, 8).toUpperCase()}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded bg-slate-700 flex items-center justify-center text-[10px] text-white">
+                              {trip.vehicle?.name?.replace("Araç ", "") || "V"}
                             </div>
-                          </td>
-                          <td className="p-4 text-slate-300">
-                            <div className="flex items-center gap-2">
-                              <span>
-                                {trip.route?.startStation || "Başlangıç"}
-                              </span>
-                              <span className="material-symbols-rounded text-slate-600 text-[14px]">
-                                arrow_forward
-                              </span>
-                              <span>{trip.route?.endStation || "Bitiş"}</span>
-                            </div>
-                          </td>
-                          <td className="p-4 text-white font-medium">
-                            ₺{Number(trip.route?.totalCost || 0).toFixed(2)}
-                          </td>
-                          <td className="p-4 text-right">
-                            <StatusBadge status={trip.status} />
-                          </td>
-                          <td className="p-4 text-center">
-                            <Link
-                              href={`/admin/trips/${trip.id}`}
-                              className="text-slate-500 hover:text-white transition-colors"
-                            >
-                              <span className="material-symbols-rounded text-[18px]">
-                                visibility
-                              </span>
-                            </Link>
-                          </td>
-                        </tr>
-                      ))
-                    : // Demo data when no trips
-                      [
-                        {
-                          id: "OP-1024",
-                          vehicle: "Araç A",
-                          from: "Gebze",
-                          to: "Darıca",
-                          cost: 450,
-                          status: "completed",
-                        },
-                        {
-                          id: "OP-1025",
-                          vehicle: "Araç C",
-                          from: "İzmit",
-                          to: "Kartepe",
-                          cost: 320.5,
-                          status: "in_progress",
-                        },
-                        {
-                          id: "OP-1026",
-                          vehicle: "Araç B",
-                          from: "Körfez",
-                          to: "Derince",
-                          cost: 210,
-                          status: "scheduled",
-                        },
-                        {
-                          id: "OP-1027",
-                          vehicle: "Araç A",
-                          from: "Gölcük",
-                          to: "Karamürsel",
-                          cost: 185.75,
-                          status: "completed",
-                        },
-                      ].map((trip) => (
-                        <tr
-                          key={trip.id}
-                          className="hover:bg-slate-800/30 transition-colors group"
-                        >
-                          <td className="p-4 font-medium text-white group-hover:text-primary transition-colors">
-                            #{trip.id}
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <div className="h-6 w-6 rounded bg-slate-700 flex items-center justify-center text-[10px] text-white">
-                                {trip.vehicle.charAt(trip.vehicle.length - 1)}
-                              </div>
-                              <span className="text-slate-300">
-                                {trip.vehicle}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-4 text-slate-300">
-                            <div className="flex items-center gap-2">
-                              <span>{trip.from}</span>
-                              <span className="material-symbols-rounded text-slate-600 text-[14px]">
-                                arrow_forward
-                              </span>
-                              <span>{trip.to}</span>
-                            </div>
-                          </td>
-                          <td className="p-4 text-white font-medium">
-                            ₺{trip.cost.toFixed(2)}
-                          </td>
-                          <td className="p-4 text-right">
-                            <StatusBadge status={trip.status} />
-                          </td>
-                          <td className="p-4 text-center">
-                            <button className="text-slate-500 hover:text-white transition-colors">
-                              <span className="material-symbols-rounded text-[18px]">
-                                visibility
-                              </span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            <span className="text-slate-300">
+                              {trip.vehicle?.name || "Araç"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-slate-300">
+                          <div className="flex items-center gap-2">
+                            <span>{trip.planRoute?.cargoCount || 0} kargo</span>
+                            <span className="material-symbols-rounded text-slate-600 text-[14px]">
+                              arrow_forward
+                            </span>
+                            <span>
+                              {Number(
+                                trip.planRoute?.totalDistanceKm || 0
+                              ).toFixed(1)}{" "}
+                              km
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-white font-medium">
+                          ₺
+                          {Number(
+                            trip.planRoute?.totalCost || trip.actualCost || 0
+                          ).toFixed(2)}
+                        </td>
+                        <td className="p-4 text-right">
+                          <StatusBadge status={trip.status} />
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    // No trips message
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="p-8 text-center text-slate-400"
+                      >
+                        Henüz sefer bulunmuyor. Plan oluşturup aktif ettiğinizde
+                        seferler burada görünecek.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

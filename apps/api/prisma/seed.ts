@@ -71,19 +71,19 @@ async function main() {
     {
       plateNumber: "41 KOU 001",
       name: "Araç 1",
-      capacityKg: 1000,
+      capacityKg: 500,
       ownership: "owned" as const,
     },
     {
       plateNumber: "41 KOU 002",
       name: "Araç 2",
-      capacityKg: 1500,
+      capacityKg: 750,
       ownership: "owned" as const,
     },
     {
       plateNumber: "41 KOU 003",
       name: "Araç 3",
-      capacityKg: 2000,
+      capacityKg: 1000,
       ownership: "owned" as const,
     },
   ];
