@@ -133,7 +133,9 @@ export default function TripsPage() {
     const completed = trips.filter(
       (t: Trip) => t.status === "completed"
     ).length;
-    const pending = trips.filter((t: Trip) => t.status === "pending").length;
+    const pending = trips.filter(
+      (t: Trip) => t.status === "scheduled" || t.status === "pending"
+    ).length;
     return { active, completed, pending };
   }, [trips]);
 
