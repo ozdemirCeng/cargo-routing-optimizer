@@ -40,7 +40,9 @@ OptimizerInput:
         type: string
         enum:
           - unlimited_vehicles  # Sınırsız araç, min maliyet, gerekirse kirala
-          - limited_vehicles    # Belirli araç, min maliyet + max kargo
+          - limited_vehicles    # (legacy) Belirli araç, varsayılan: max adet + min maliyet
+          - limited_vehicles_max_count  # Belirli araç: max adet + min maliyet
+          - limited_vehicles_max_weight # Belirli araç: max kg + min maliyet
         example: "unlimited_vehicles"
       
       hub:
@@ -212,7 +214,11 @@ OptimizerOutput:
       
       problem_type:
         type: string
-        enum: [unlimited_vehicles, limited_vehicles]
+        enum:
+          - unlimited_vehicles
+          - limited_vehicles
+          - limited_vehicles_max_count
+          - limited_vehicles_max_weight
       
       summary:
         type: object

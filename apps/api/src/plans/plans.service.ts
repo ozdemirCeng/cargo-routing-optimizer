@@ -291,7 +291,8 @@ export class PlansService {
     // 8-9. Plan + rotalar + atamalar (sequential - PgBouncer uyumlu)
     let planId: string;
     try {
-      planId = await this.prisma.$transaction(async (tx) => {
+      planId = await this.prisma.$transaction(
+        async (tx) => {
         // Optimizer may create rented vehicles on the fly (unlimited_vehicles).
         // Persist them so plan route foreign keys are valid.
         for (const route of optimizerResult.routes) {
@@ -398,7 +399,9 @@ export class PlansService {
         }
 
         return plan.id;
-      });
+        },
+        { timeout: 60000, maxWait: 60000 } // 60 saniye timeout
+      );
     } catch (error: any) {
       if (
         error?.constructor?.name === "PrismaClientKnownRequestError" &&

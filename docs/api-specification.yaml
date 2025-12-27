@@ -456,7 +456,9 @@ paths:
         
         **problem_type:**
         - `unlimited_vehicles`: Sınırsız araç, min maliyet
-        - `limited_vehicles`: Belirli araç, min maliyet + max kargo
+        - `limited_vehicles`: (legacy) Belirli araç, varsayılan: max adet + min maliyet
+        - `limited_vehicles_max_count`: Belirli araç, max adet + min maliyet
+        - `limited_vehicles_max_weight`: Belirli araç, max kg + min maliyet
       security:
         - bearerAuth: []
       requestBody:
@@ -1025,7 +1027,13 @@ components:
           format: date
         problemType:
           type: string
-          enum: [unlimited_vehicles, limited_vehicles]
+          enum:
+            [
+              unlimited_vehicles,
+              limited_vehicles,
+              limited_vehicles_max_count,
+              limited_vehicles_max_weight,
+            ]
         status:
           type: string
           enum: [draft, active, completed, cancelled]
@@ -1053,7 +1061,13 @@ components:
           description: "Ertesi gün tarihi"
         problemType:
           type: string
-          enum: [unlimited_vehicles, limited_vehicles]
+          enum:
+            [
+              unlimited_vehicles,
+              limited_vehicles,
+              limited_vehicles_max_count,
+              limited_vehicles_max_weight,
+            ]
         parameters:
           type: object
           properties:

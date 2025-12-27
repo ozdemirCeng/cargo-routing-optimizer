@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth";
 
 const adminMenuItems = [
   { text: "Dashboard", icon: "dashboard", path: "/admin" },
+  { text: "Analiz Raporu", icon: "summarize", path: "/admin/reports" },
   { text: "Geospatial Hub", icon: "map", path: "/admin/stations" },
   { text: "Araçlar", icon: "directions_car", path: "/admin/vehicles" },
   { text: "Kargo Siparişleri", icon: "inventory_2", path: "/admin/cargos" },

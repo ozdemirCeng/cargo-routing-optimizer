@@ -53,7 +53,12 @@ class DistanceInfo(BaseModel):
 
 class OptimizerInput(BaseModel):
     plan_date: str
-    problem_type: str  # 'unlimited_vehicles' or 'limited_vehicles'
+    # Supported:
+    # - unlimited_vehicles
+    # - limited_vehicles (legacy -> max_count)
+    # - limited_vehicles_max_count
+    # - limited_vehicles_max_weight
+    problem_type: str
     hub: HubInfo
     stations: List[StationInfo]
     vehicles: List[VehicleInfo]

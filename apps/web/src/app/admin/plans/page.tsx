@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { plansApi, stationsApi, vehiclesApi } from "@/lib/api";
 import dynamic from "next/dynamic";
 import VehicleCard from "@/components/VehicleCard";
+import Link from "next/link";
 
 const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
 
@@ -30,6 +31,7 @@ interface PlanRoute {
   totalWeightKg: number;
   totalDistanceKm: number;
   totalCost: number;
+  totalDurationMin?: number;
   routeDetails?: {
     station_id: string;
     station_name: string;
@@ -63,7 +65,56 @@ export default function PlansPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
-  const [problemType, setProblemType] = useState("unlimited_vehicles");
+  const [fleetMode, setFleetMode] = useState<"unlimited" | "limited">(
+    "unlimited"
+  );
+  const [limitedObjective, setLimitedObjective] = useState<
+    "max_count" | "max_weight"
+  >("max_count");
+
+  const effectiveProblemType =
+    fleetMode === "unlimited"
+      ? "unlimited_vehicles"
+      : limitedObjective === "max_weight"
+        ? "limited_vehicles_max_weight"
+        : "limited_vehicles_max_count";
+
+  const normalizeProblemType = (t: string) =>
+    t === "limited_vehicles" ? "limited_vehicles_max_count" : t;
+
+  const problemTypeLabel = (t: string) => {
+    switch (normalizeProblemType(t)) {
+      case "unlimited_vehicles":
+        return "Sınırsız Araç";
+      case "limited_vehicles_max_count":
+        return "Belirli Araç (Max Adet)";
+      case "limited_vehicles_max_weight":
+        return "Belirli Araç (Max Kg)";
+      default:
+        return t;
+    }
+  };
+
+  const applyPlanSelection = (plan: Plan | null) => {
+    setSelectedPlan(plan);
+    if (!plan) return;
+
+    const dateStr = plan.planDate?.split("T")?.[0];
+    if (dateStr) setSelectedDate(dateStr);
+
+    const pt = normalizeProblemType(plan.problemType);
+    if (pt === "unlimited_vehicles") {
+      setFleetMode("unlimited");
+      return;
+    }
+
+    setFleetMode("limited");
+    if (pt === "limited_vehicles_max_weight") {
+      setLimitedObjective("max_weight");
+      return;
+    }
+    setLimitedObjective("max_count");
+  };
 
   // Keep a default selected route so stop order is always visible on the map.
   useEffect(() => {
@@ -102,7 +153,7 @@ export default function PlansPage() {
     mutationFn: plansApi.create,
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["plans"] });
-      setSelectedPlan(response.data);
+      applyPlanSelection(response.data);
     },
   });
 
@@ -129,8 +180,21 @@ export default function PlansPage() {
 
   // Find plan for selected date
   const todayPlan = useMemo(() => {
-    return plans?.find((p: Plan) => p.planDate.split("T")[0] === selectedDate);
-  }, [plans, selectedDate]);
+    return plans?.find(
+      (p: Plan) =>
+        p.planDate.split("T")[0] === selectedDate &&
+        normalizeProblemType(p.problemType) ===
+          normalizeProblemType(effectiveProblemType)
+    );
+  }, [plans, selectedDate, effectiveProblemType]);
+
+  // Auto-select the plan for the currently selected date + mode (so user doesn't
+  // have to manually pick from history each time).
+  useEffect(() => {
+    if (!plans) return;
+    applyPlanSelection(todayPlan || null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayPlan?.id]);
 
   // Map data
   const mapStations = useMemo(() => {
@@ -198,30 +262,20 @@ export default function PlansPage() {
     return selectedPlan.routes.map((route, idx) => {
       const capacityKg = Number(route.vehicle?.capacityKg) || 0;
       const totalWeightKg = Number(route.totalWeightKg) || 0;
-      const loadPercentage = capacityKg
-        ? Math.round((totalWeightKg / capacityKg) * 100)
-        : 0;
-
-      const firstStation = route.routeDetails?.[0]?.station_name || "";
-      const lastStation =
-        route.routeDetails?.[route.routeDetails.length - 1]?.station_name || "";
 
       return {
         id: route.id,
         name: route.vehicle?.name || `Araç ${idx + 1}`,
         plateNumber: route.vehicle?.plateNumber || "N/A",
-        status:
-          loadPercentage > 80
-            ? ("active" as const)
-            : loadPercentage < 50
-              ? ("warning" as const)
-              : ("active" as const),
-        route:
-          firstStation && lastStation
-            ? { from: firstStation, to: lastStation }
-            : undefined,
-        cost: Number(route.totalCost) || 0,
-        loadPercentage,
+        cargoCount: Number(route.cargoCount) || 0,
+        totalWeightKg,
+        capacityKg,
+        totalDistanceKm: Number(route.totalDistanceKm) || 0,
+        totalDurationMinutes:
+          route.totalDurationMin === undefined || route.totalDurationMin === null
+            ? undefined
+            : Number(route.totalDurationMin),
+        totalCost: Number(route.totalCost) || 0,
         color: ROUTE_COLORS[idx % ROUTE_COLORS.length],
       };
     });
@@ -248,7 +302,7 @@ export default function PlansPage() {
   const handleStartPlanning = () => {
     createMutation.mutate({
       planDate: selectedDate,
-      problemType,
+      problemType: effectiveProblemType,
     });
   };
 
@@ -325,17 +379,46 @@ export default function PlansPage() {
               tune
             </span>
             <select
-              value={problemType}
-              onChange={(e) => setProblemType(e.target.value)}
+              value={fleetMode}
+              onChange={(e) => setFleetMode(e.target.value as any)}
               className="bg-transparent border-none text-sm text-white focus:outline-none cursor-pointer"
             >
-              <option value="unlimited_vehicles" className="bg-slate-800">
+              <option value="unlimited" className="bg-slate-800">
                 Sınırsız Araç
               </option>
-              <option value="limited_vehicles" className="bg-slate-800">
+              <option value="limited" className="bg-slate-800">
                 Belirli Araç
               </option>
             </select>
+
+            {fleetMode === "limited" && (
+              <div className="ml-2 flex items-center gap-1 rounded-xl bg-white/5 border border-white/10 p-1">
+                <button
+                  type="button"
+                  onClick={() => setLimitedObjective("max_count")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                    limitedObjective === "max_count"
+                      ? "bg-primary text-white"
+                      : "text-slate-200 hover:bg-white/10"
+                  }`}
+                  title="Maksimum kargo adedi, sonra minimum maliyet"
+                >
+                  Max Adet
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLimitedObjective("max_weight")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                    limitedObjective === "max_weight"
+                      ? "bg-primary text-white"
+                      : "text-slate-200 hover:bg-white/10"
+                  }`}
+                  title="Maksimum toplam kg, sonra minimum maliyet"
+                >
+                  Max Kg
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Status Badge */}
@@ -395,6 +478,29 @@ export default function PlansPage() {
               </>
             )}
           </button>
+
+          <Link
+            href={
+              selectedPlan?.id
+                ? `/admin/reports?planId=${encodeURIComponent(selectedPlan.id)}`
+                : "/admin/reports"
+            }
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm tracking-wide shadow-lg transition-all active:scale-95 ml-2 border ${
+              selectedPlan?.id
+                ? "bg-white/5 hover:bg-white/10 border-white/10 text-white"
+                : "bg-slate-800/40 border-white/5 text-slate-400 pointer-events-none"
+            }`}
+            title={
+              selectedPlan?.id
+                ? "Seçili planın analiz raporunu aç"
+                : "Önce bir plan seçin/oluşturun"
+            }
+          >
+            <span className="material-symbols-rounded text-[20px]">
+              summarize
+            </span>
+            Analiz
+          </Link>
         </div>
       </header>
 
@@ -470,7 +576,7 @@ export default function PlansPage() {
                 className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-white/5 last:border-b-0 group"
               >
                 <button
-                  onClick={() => setSelectedPlan(plan)}
+                  onClick={() => applyPlanSelection(plan)}
                   className="flex items-center gap-3 flex-1"
                 >
                   <div
@@ -489,7 +595,8 @@ export default function PlansPage() {
                       {new Date(plan.planDate).toLocaleDateString("tr-TR")}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {plan.vehiclesUsed} araç • {plan.totalCargos} kargo
+                      {problemTypeLabel(plan.problemType)} • {plan.vehiclesUsed}{" "}
+                      araç • {plan.totalCargos} kargo
                     </p>
                   </div>
                 </button>
@@ -544,7 +651,17 @@ export default function PlansPage() {
               {vehicleCards.map((card) => (
                 <VehicleCard
                   key={card.id}
-                  vehicle={card}
+                  vehicle={{
+                    id: card.id,
+                    name: card.name,
+                    plateNumber: card.plateNumber,
+                    cargoCount: card.cargoCount,
+                    totalWeightKg: card.totalWeightKg,
+                    capacityKg: card.capacityKg,
+                    totalDistanceKm: card.totalDistanceKm,
+                    totalDurationMinutes: card.totalDurationMinutes,
+                    totalCost: card.totalCost,
+                  }}
                   color={card.color}
                   isSelected={selectedRouteId === card.id}
                   onHover={(hovered) =>

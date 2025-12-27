@@ -36,7 +36,12 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-    CREATE TYPE problem_type AS ENUM ('unlimited_vehicles', 'limited_vehicles');
+    CREATE TYPE problem_type AS ENUM (
+      'unlimited_vehicles',
+      'limited_vehicles',
+      'limited_vehicles_max_count',
+      'limited_vehicles_max_weight'
+    );
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
@@ -2074,7 +2079,7 @@ create table if not exists public.plans (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations(id) on delete restrict,
   plan_date date not null,
-  problem_type varchar(50) not null, -- unlimited_vehicles / limited_vehicles
+  problem_type varchar(50) not null, -- unlimited_vehicles / limited_vehicles(_max_count|_max_weight)
   status public.plan_status default 'draft',
 
   total_distance_km numeric(10,3),

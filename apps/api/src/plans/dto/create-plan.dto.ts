@@ -17,8 +17,20 @@ export class CreatePlanDto {
   @IsDateString()
   planDate: string;
 
-  @ApiProperty({ enum: ['unlimited_vehicles', 'limited_vehicles'] })
-  @IsEnum(['unlimited_vehicles', 'limited_vehicles'])
+  @ApiProperty({
+    enum: [
+      "unlimited_vehicles",
+      "limited_vehicles", // legacy alias (defaults to max_count in optimizer)
+      "limited_vehicles_max_count",
+      "limited_vehicles_max_weight",
+    ],
+  })
+  @IsEnum([
+    "unlimited_vehicles",
+    "limited_vehicles",
+    "limited_vehicles_max_count",
+    "limited_vehicles_max_weight",
+  ])
   problemType: string;
 
   @ApiProperty({ required: false })

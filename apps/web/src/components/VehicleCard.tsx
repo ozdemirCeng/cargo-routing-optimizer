@@ -5,46 +5,18 @@ interface VehicleCardProps {
     id: string;
     name: string;
     plateNumber: string;
-    status: "active" | "warning" | "idle";
-    route?: {
-      from: string;
-      to: string;
-    };
-    cost?: number;
-    loadPercentage: number;
+    cargoCount: number;
+    totalWeightKg: number;
+    capacityKg: number;
+    totalDistanceKm: number;
+    totalDurationMinutes?: number;
+    totalCost: number;
   };
   color: string;
   onHover?: (hovered: boolean) => void;
   onClick?: () => void;
   isSelected?: boolean;
 }
-
-const statusConfig = {
-  active: {
-    label: "ON ROUTE",
-    textColor: "text-emerald-400",
-    bgColor: "bg-emerald-400/10",
-    borderColor: "border-emerald-400/20",
-    barColor: "bg-primary",
-    accentColor: "border-primary",
-  },
-  warning: {
-    label: "WARNING",
-    textColor: "text-orange-400",
-    bgColor: "bg-orange-400/10",
-    borderColor: "border-orange-400/20",
-    barColor: "bg-orange-500",
-    accentColor: "border-orange-500",
-  },
-  idle: {
-    label: "IDLE",
-    textColor: "text-slate-300",
-    bgColor: "bg-slate-700/50",
-    borderColor: "border-slate-600",
-    barColor: "bg-slate-600",
-    accentColor: "border-slate-600",
-  },
-};
 
 export default function VehicleCard({
   vehicle,
@@ -53,15 +25,22 @@ export default function VehicleCard({
   onClick,
   isSelected,
 }: VehicleCardProps) {
-  const config = statusConfig[vehicle.status];
-  const isIdle = vehicle.status === "idle";
+  const capacity = Number(vehicle.capacityKg) || 0;
+  const weight = Number(vehicle.totalWeightKg) || 0;
+  const loadPercentage = capacity ? Math.round((weight / capacity) * 100) : 0;
+  const km = Number(vehicle.totalDistanceKm) || 0;
+  const cost = Number(vehicle.totalCost) || 0;
+  const durationMin =
+    vehicle.totalDurationMinutes === undefined || vehicle.totalDurationMinutes === null
+      ? null
+      : Number(vehicle.totalDurationMinutes) || 0;
 
   return (
     <div
       className={`
-        min-w-[340px] h-full bg-[#1e293b]/60 rounded-xl p-4 flex flex-col gap-3 
+        min-w-[360px] h-full bg-[#0f172a]/55 rounded-2xl p-4 flex flex-col gap-3
         cursor-pointer relative overflow-hidden transition-all duration-200
-        ${isIdle ? "border border-dashed border-slate-600 opacity-70 hover:opacity-100 hover:bg-white/5" : "border border-white/5"}
+        border border-white/10
         ${isSelected ? "ring-2 ring-primary shadow-lg shadow-primary/20" : ""}
         hover:border-primary/50
       `}
@@ -70,119 +49,101 @@ export default function VehicleCard({
       onClick={onClick}
     >
       {/* Left accent bar */}
-      {!isIdle && (
-        <div
-          className="absolute top-0 left-0 w-1 h-full"
-          style={{ backgroundColor: color }}
-        />
-      )}
+      <div
+        className="absolute top-0 left-0 w-1 h-full"
+        style={{ backgroundColor: color }}
+      />
 
       {/* Header */}
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center border border-white/10">
-            <span
-              className={`material-symbols-rounded ${isIdle ? "text-slate-200" : "text-white"}`}
-            >
-              {isIdle ? "add_circle" : "local_shipping"}
+          <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10">
+            <span className="material-symbols-rounded text-white">
+              local_shipping
             </span>
           </div>
           <div>
-            <p
-              className={`font-bold leading-tight ${isIdle ? "text-slate-300" : "text-white"}`}
-            >
-              {vehicle.name}
-            </p>
+            <p className="font-bold leading-tight text-white">{vehicle.name}</p>
             <p className="text-slate-300 text-xs font-mono">
               {vehicle.plateNumber}
             </p>
           </div>
         </div>
-        <span
-          className={`text-xs font-bold px-2 py-1 rounded ${config.textColor} ${config.bgColor} ${!isIdle ? `border ${config.borderColor}` : ""}`}
-        >
-          {config.label}
-        </span>
+        <div className="text-right">
+          <div className="text-xs text-slate-300">Maliyet</div>
+          <div className="text-white font-extrabold tabular-nums">
+            ₺{cost.toFixed(0)}
+          </div>
+        </div>
       </div>
 
-      {/* Route Info or Idle State */}
-      {isIdle ? (
-        <div className="flex flex-col gap-1 mt-1 flex-1 justify-center items-center text-center">
-          <p className="text-sm text-slate-200">Atama bekleniyor</p>
-          <button className="mt-2 text-primary text-xs font-bold uppercase tracking-wider hover:underline">
-            Rota Ata
-          </button>
+      {/* Key stats */}
+      <div className="grid grid-cols-3 gap-3 mt-1">
+        <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+          <div className="text-[11px] text-slate-300">Kargo</div>
+          <div className="text-white font-bold tabular-nums">
+            {vehicle.cargoCount}
+            <span className="text-slate-300 font-semibold ml-1">adet</span>
+          </div>
         </div>
-      ) : (
-        <div className="flex flex-col gap-1 mt-1">
-          {vehicle.route && (
-            <div className="flex justify-between text-xs text-slate-300 mb-1">
-              <span>Rota</span>
-              <span className="text-white">
-                {vehicle.route.from}{" "}
-                <span className="text-slate-300 mx-1">&gt;</span>{" "}
-                {vehicle.route.to}
-              </span>
-            </div>
-          )}
+        <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+          <div className="text-[11px] text-slate-300">Yük</div>
+          <div className="text-white font-bold tabular-nums">
+            {weight.toFixed(0)}
+            <span className="text-slate-300 font-semibold ml-1">kg</span>
+          </div>
+        </div>
+        <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+          <div className="text-[11px] text-slate-300">Mesafe</div>
+          <div className="text-white font-bold tabular-nums">
+            {km.toFixed(1)}
+            <span className="text-slate-300 font-semibold ml-1">km</span>
+          </div>
+        </div>
+      </div>
 
-          {vehicle.cost !== undefined && vehicle.cost !== null && (
-            <div className="flex justify-between text-xs text-slate-300">
-              <span>Maliyet</span>
-              <span className="text-white font-mono">
-                ₺{Number(vehicle.cost).toFixed(0)}
-              </span>
-            </div>
-          )}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+          <div className="text-[11px] text-slate-300">Kapasite</div>
+          <div className="text-white font-bold tabular-nums">
+            {capacity.toFixed(0)}
+            <span className="text-slate-300 font-semibold ml-1">kg</span>
+          </div>
         </div>
-      )}
+        <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+          <div className="text-[11px] text-slate-300">Süre</div>
+          <div className="text-white font-bold tabular-nums">
+            {durationMin === null ? "-" : durationMin.toFixed(0)}
+            <span className="text-slate-300 font-semibold ml-1">dk</span>
+          </div>
+        </div>
+      </div>
 
       {/* Load Capacity Bar */}
-      <div className={`mt-auto ${isIdle ? "opacity-50" : ""}`}>
+      <div className="mt-auto">
         <div className="flex justify-between text-xs mb-1.5">
-          <span className={isIdle ? "text-slate-300" : "text-slate-300"}>
-            Kapasite
-          </span>
+          <span className="text-slate-300">Doluluk</span>
           <span
             className={`font-bold ${
-              vehicle.loadPercentage > 80
-                ? "text-white"
-                : vehicle.loadPercentage < 50
-                  ? config.textColor
-                  : "text-white"
+              loadPercentage >= 90
+                ? "text-rose-300"
+                : loadPercentage >= 75
+                  ? "text-white"
+                  : "text-emerald-300"
             }`}
           >
-            {vehicle.loadPercentage}%
+            {loadPercentage}%
           </span>
         </div>
         <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${config.barColor}`}
-            style={{ width: `${vehicle.loadPercentage}%` }}
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${Math.min(100, Math.max(0, loadPercentage))}%`,
+              backgroundColor: color,
+            }}
           />
         </div>
-      </div>
-    </div>
-  );
-}
-
-// Add New Vehicle Card Component
-export function AddVehicleCard({ onClick }: { onClick?: () => void }) {
-  return (
-    <div
-      onClick={onClick}
-      className="min-w-[340px] h-full bg-[#1e293b]/40 border border-dashed border-slate-600 rounded-xl p-4 flex flex-col items-center justify-center gap-3 cursor-pointer opacity-60 hover:opacity-100 hover:bg-white/5 hover:border-primary/50 transition-all group"
-    >
-      <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center border border-white/10 group-hover:border-primary/30 transition-colors">
-        <span className="material-symbols-rounded text-slate-200 group-hover:text-primary text-3xl transition-colors">
-          add
-        </span>
-      </div>
-      <div className="text-center">
-        <p className="text-slate-200 group-hover:text-white font-medium">
-          Araç Ekle
-        </p>
-        <p className="text-xs text-slate-300">Yeni rota oluştur</p>
       </div>
     </div>
   );

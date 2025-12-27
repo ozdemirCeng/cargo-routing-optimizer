@@ -102,7 +102,9 @@ def optimize(input_data: OptimizerInput):
     
     İki problem tipi desteklenir:
     - unlimited_vehicles: Sınırsız araç, minimum maliyet (gerekirse araç kirala)
-    - limited_vehicles: Belirli araçlar, minimum maliyet + maksimum kargo
+    - limited_vehicles: (legacy) Belirli araçlar, varsayılan: max adet + min maliyet
+    - limited_vehicles_max_count: Belirli araçlar, max adet + min maliyet
+    - limited_vehicles_max_weight: Belirli araçlar, max kg + min maliyet
     """
     try:
         start_time = time.time()

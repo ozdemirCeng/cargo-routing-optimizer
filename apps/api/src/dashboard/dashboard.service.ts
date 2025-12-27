@@ -150,10 +150,13 @@ export class DashboardService {
       },
     });
 
-    // Filter only active/completed plans
-    const activeRoutes = routes.filter(
-      (r) => r.plan.status === "active" || r.plan.status === "completed"
-    );
+    // If a planId is provided, return analysis for that plan regardless of status.
+    // (Admin reports often need draft plans before activation.)
+    const activeRoutes = planId
+      ? routes
+      : routes.filter(
+          (r) => r.plan.status === "active" || r.plan.status === "completed"
+        );
 
     // Group by vehicle and sum costs
     const vehicleMap = new Map<

@@ -42,52 +42,15 @@ interface RouteMapProps {
   selectedRouteId?: string | null;
 }
 
-const ROUTE_COLORS = {
-  blue: "#135bec",
-  orange: "#f97316",
-  green: "#22c55e",
-  purple: "#a855f7",
-  cyan: "#06b6d4",
-  pink: "#ec4899",
-};
-
-const COLOR_LIST = Object.values(ROUTE_COLORS);
-
-function resolveRouteColor(color: string | undefined, fallbackIndex: number) {
-  if (!color) return COLOR_LIST[fallbackIndex % COLOR_LIST.length];
-  if (color in ROUTE_COLORS) return ROUTE_COLORS[color as keyof typeof ROUTE_COLORS];
-  return color;
-}
-
-function createBriefPopup(options: {
-  map: maplibregl.Map;
-  lngLat: [number, number];
-  html: string;
-  offset?: number;
-  durationMs?: number;
-}) {
-  const popup = new maplibregl.Popup({
-    closeButton: false,
-    closeOnClick: false,
-    offset: options.offset ?? 16,
-    className: "route-hover-label",
-  })
-    .setLngLat(options.lngLat)
-    .setHTML(options.html)
-    .addTo(options.map);
-
-  const timeout = window.setTimeout(
-    () => popup.remove(),
-    options.durationMs ?? 1200
-  );
-
-  return {
-    remove: () => {
-      window.clearTimeout(timeout);
-      popup.remove();
-    },
-  };
-}
+// Belirgin ve farklı renkler
+const ROUTE_COLORS = [
+  "#e63946", // kırmızı
+  "#2a9d8f", // turkuaz
+  "#e9c46a", // sarı
+  "#264653", // koyu mavi
+  "#f4a261", // turuncu
+  "#9b5de5", // mor
+];
 
 export default function RouteMap({
   stations,
@@ -97,14 +60,12 @@ export default function RouteMap({
 }: RouteMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const markers = useRef<maplibregl.Marker[]>([]);
-  const stopMarkers = useRef<maplibregl.Marker[]>([]);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [hoveredStation, setHoveredStation] = useState<string | null>(null);
 
-  // Kocaeli merkez koordinatları
   const CENTER: [number, number] = [29.9, 40.76];
 
-  // User tarafındaki harita ile aynı: CARTO Voyager (light, okunabilir)
   const voyagerStyle = {
     version: 8,
     sources: {
@@ -116,8 +77,6 @@ export default function RouteMap({
           "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
         ],
         tileSize: 256,
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
       },
     },
     layers: [
@@ -127,13 +86,11 @@ export default function RouteMap({
         source: "osm-tiles",
         minzoom: 0,
         maxzoom: 19,
-        paint: {
-          "raster-opacity": 0.95,
-        },
       },
     ],
   } as maplibregl.StyleSpecification;
 
+  // Harita başlat
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
@@ -150,9 +107,7 @@ export default function RouteMap({
       "bottom-right"
     );
 
-    map.current.on("load", () => {
-      setLoaded(true);
-    });
+    map.current.on("load", () => setLoaded(true));
 
     return () => {
       map.current?.remove();
@@ -160,351 +115,300 @@ export default function RouteMap({
     };
   }, []);
 
-  // Draw routes
+  // Rota çizgileri
   useEffect(() => {
     if (!map.current || !loaded) return;
 
-    // Remove existing route layers
-    routes.forEach((_, idx) => {
-      const layerId = `route-${idx}`;
-      const glowLayerId = `route-glow-${idx}`;
-      if (map.current?.getLayer(layerId)) {
-        map.current.removeLayer(layerId);
-      }
-      if (map.current?.getLayer(glowLayerId)) {
-        map.current.removeLayer(glowLayerId);
-      }
-      if (map.current?.getSource(layerId)) {
-        map.current.removeSource(layerId);
-      }
-    });
+    // Eski layerları temizle
+    for (let i = 0; i < 10; i++) {
+      const ids = [`route-line-${i}`, `route-outline-${i}`];
+      ids.forEach((id) => {
+        if (map.current?.getLayer(id)) map.current.removeLayer(id);
+        if (map.current?.getSource(id)) map.current.removeSource(id);
+      });
+    }
 
-    // Add route lines
     routes.forEach((route, idx) => {
       if (!route.polyline) return;
 
-      // Optimizer output stores polylines as semicolon-separated OSRM segments.
-      // Decode and concatenate segments safely.
       const segments = route.polyline.split(";").filter(Boolean);
       const coordinates: [number, number][] = [];
 
       for (const segment of segments) {
         try {
           const decoded = polyline.decode(segment);
-          for (let i = 0; i < decoded.length; i++) {
-            const [lat, lng] = decoded[i];
+          for (const [lat, lng] of decoded) {
             const point: [number, number] = [lng, lat];
-
-            // Avoid duplicating the join point between consecutive segments.
             const last = coordinates[coordinates.length - 1];
             if (last && last[0] === point[0] && last[1] === point[1]) continue;
-
             coordinates.push(point);
           }
-        } catch (e) {
-          console.error("Polyline decode error:", e);
-        }
+        } catch {}
       }
 
       if (coordinates.length < 2) return;
 
-      const layerId = `route-${idx}`;
-      const color = route.color || COLOR_LIST[idx % COLOR_LIST.length];
+      const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
       const isSelected = selectedRouteId === route.id;
+      const hasSelection = !!selectedRouteId;
+      const opacity = hasSelection && !isSelected ? 0.25 : 1;
+      
+      // Her rota için farklı offset (üst üste binmeyi önle)
+      const offset = routes.length > 1 ? (idx - (routes.length - 1) / 2) * 6 : 0;
 
-      map.current?.addSource(layerId, {
+      const sourceId = `route-line-${idx}`;
+      
+      map.current?.addSource(sourceId, {
         type: "geojson",
         data: {
           type: "Feature",
-          properties: { routeId: route.id },
-          geometry: {
-            type: "LineString",
-            coordinates,
-          },
+          properties: {},
+          geometry: { type: "LineString", coordinates },
         },
       });
 
-      // Glow effect layer
+      // Dış çerçeve (koyu)
       map.current?.addLayer({
-        id: `route-glow-${idx}`,
+        id: `route-outline-${idx}`,
         type: "line",
-        source: layerId,
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
+        source: sourceId,
+        paint: {
+          "line-color": "#1a1a2e",
+          "line-width": isSelected ? 10 : 7,
+          "line-opacity": opacity * 0.8,
+          "line-offset": offset,
         },
+        layout: { "line-cap": "round", "line-join": "round" },
+      });
+
+      // Ana çizgi
+      map.current?.addLayer({
+        id: `route-line-${idx}`,
+        type: "line",
+        source: sourceId,
         paint: {
           "line-color": color,
-          "line-width": isSelected ? 12 : 8,
-          "line-opacity": 0.3,
-          "line-blur": 4,
+          "line-width": isSelected ? 6 : 4,
+          "line-opacity": opacity,
+          "line-offset": offset,
         },
-      });
-
-      // Main route line
-      map.current?.addLayer({
-        id: layerId,
-        type: "line",
-        source: layerId,
-        layout: {
-          "line-join": "round",
-          "line-cap": "round",
-        },
-        paint: {
-          "line-color": color,
-          "line-width": isSelected ? 4 : 3,
-          "line-opacity": isSelected ? 1 : 0.8,
-          "line-dasharray": route.status === "idle" ? [2, 2] : [1, 0],
-        },
-      });
-
-      // Hover events
-      map.current?.on("mouseenter", layerId, () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = "pointer";
-
-          // Bring hovered route to front so it doesn't stay underneath.
-          try {
-            const glowId = `route-glow-${idx}`;
-            if (map.current.getLayer(glowId)) map.current.moveLayer(glowId);
-            if (map.current.getLayer(layerId)) map.current.moveLayer(layerId);
-          } catch {
-            // ignore (layer ordering is best-effort)
-          }
-        }
-        onRouteHover?.(route.id);
-      });
-
-      map.current?.on("mouseleave", layerId, () => {
-        if (map.current) {
-          map.current.getCanvas().style.cursor = "";
-        }
-        onRouteHover?.(null);
+        layout: { "line-cap": "round", "line-join": "round" },
       });
     });
-  }, [routes, loaded, selectedRouteId, onRouteHover]);
+  }, [routes, loaded, selectedRouteId]);
 
-  // Station markers
+  // Durak markerları
   useEffect(() => {
     if (!map.current || !loaded) return;
 
-    // Clear existing markers
-    markers.current.forEach((m) => m.remove());
-    markers.current = [];
+    // Eski markerları temizle
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
 
-    // Add station markers
-    stations.forEach((station) => {
+    // Durak bilgilerini topla: koordinat -> [{routeIdx, order}]
+    type StopData = { routeIdx: number; order: number; color: string };
+    const stopMap = new Map<string, { coords: [number, number]; data: StopData[]; name: string; isHub: boolean }>();
+
+    routes.forEach((route, routeIdx) => {
+      if (!route.stops) return;
+      const color = ROUTE_COLORS[routeIdx % ROUTE_COLORS.length];
+
+      route.stops.forEach((stop) => {
+        const key = `${stop.latitude.toFixed(5)},${stop.longitude.toFixed(5)}`;
+        
+        if (!stopMap.has(key)) {
+          // İsim bul
+          let name = stop.label || "";
+          if (!name && stop.stationId) {
+            const st = stations.find((s) => s.id === stop.stationId);
+            name = st?.name || "";
+          }
+          
+          stopMap.set(key, {
+            coords: [stop.longitude, stop.latitude],
+            data: [],
+            name,
+            isHub: !!stop.isHub,
+          });
+        }
+
+        if (!stop.isHub) {
+          stopMap.get(key)!.data.push({
+            routeIdx,
+            order: stop.order + 1,
+            color,
+          });
+        }
+      });
+    });
+
+    // Her durak için marker oluştur
+    Array.from(stopMap.entries()).forEach(([key, info]) => {
+      const { coords, data, name, isHub } = info;
+
       const el = document.createElement("div");
-      el.className = "route-station-marker";
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.gap = "3px";
+      el.style.cursor = "pointer";
 
-      if (station.isHub) {
-        // Hub marker - larger with glow
+      if (isHub) {
+        // HUB marker - büyük beyaz daire
         el.innerHTML = `
-          <div class="relative">
-            <div class="absolute inset-0 bg-white rounded-full animate-ping opacity-30"></div>
-            <div class="w-5 h-5 rounded-full bg-white border-2 border-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"></div>
+          <div style="
+            width: 48px;
+            height: 48px;
+            background: white;
+            border: 4px solid #1a1a2e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          ">
+            <div style="text-align: center;">
+              <div style="font-size: 11px; font-weight: 900; color: #1a1a2e;">HUB</div>
+            </div>
           </div>
         `;
-        el.style.width = "20px";
-        el.style.height = "20px";
-      } else {
-        // Regular station marker
+      } else if (data.length === 0) {
+        // Boş durak - küçük gri nokta
         el.innerHTML = `
-          <div class="w-3 h-3 rounded-full bg-white/80 border-2 border-primary shadow-[0_0_10px_rgba(255,255,255,0.5)]"></div>
+          <div style="
+            width: 12px;
+            height: 12px;
+            background: rgba(255,255,255,0.7);
+            border: 2px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+          "></div>
         `;
-        el.style.width = "12px";
-        el.style.height = "12px";
+      } else {
+        // Durak numaraları - her araç için bir numara
+        const hasSelection = !!selectedRouteId;
+        
+        data.sort((a, b) => a.routeIdx - b.routeIdx);
+
+        const numbersHtml = data.map((d) => {
+          const isSelected = selectedRouteId === routes[d.routeIdx]?.id;
+          const opacity = hasSelection && !isSelected ? 0.3 : 1;
+          
+          return `
+            <div style="
+              width: 32px;
+              height: 32px;
+              background: ${d.color};
+              border: 3px solid white;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 14px;
+              font-weight: 900;
+              color: white;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              opacity: ${opacity};
+            ">${d.order}</div>
+          `;
+        }).join("");
+
+        el.innerHTML = numbersHtml;
       }
 
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([station.longitude, station.latitude])
+      // Hover için tooltip
+      el.addEventListener("mouseenter", () => {
+        if (name) setHoveredStation(key);
+      });
+      el.addEventListener("mouseleave", () => {
+        setHoveredStation(null);
+      });
+
+      el.dataset.stationKey = key;
+      el.dataset.stationName = name;
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat(coords)
         .addTo(map.current!);
 
-      // Brief label on hover: station name + (if known) stop order
-      let activeHover: { remove: () => void } | null = null;
-
-      const getBestStopOrder = () => {
-        if (/umuttepe/i.test(station.name)) return null;
-
-        const allOrders: number[] = [];
-        for (const r of routes) {
-          const s = r.stops?.find((st) => st.stationId && st.stationId === station.id);
-          if (typeof s?.order === "number") allOrders.push(s.order + 1);
-        }
-
-        const distinct = Array.from(new Set(allOrders));
-        // If multiple routes have different orders for this station, don't show any number
-        // to avoid confusing collisions.
-        if (distinct.length > 1) return null;
-
-        const preferred = selectedRouteId
-          ? routes.find((r) => r.id === selectedRouteId)
-          : null;
-        const preferredStop = preferred?.stops?.find(
-          (s) => s.stationId && s.stationId === station.id
-        );
-        if (preferredStop) return preferredStop.order + 1;
-
-        if (distinct.length === 1) return distinct[0];
-        return null;
-      };
-
-      el.addEventListener("mouseenter", () => {
-        if (!map.current) return;
-        activeHover?.remove();
-        const order = getBestStopOrder();
-        const html = `
-          <div class="bg-white text-slate-900 px-2.5 py-1.5 rounded-md text-xs font-semibold">
-            ${station.name}${order ? ` • ${order}` : ""}
-          </div>
-        `;
-        activeHover = createBriefPopup({
-          map: map.current,
-          lngLat: [station.longitude, station.latitude],
-          html,
-          offset: 14,
-          durationMs: 1200,
-        });
-      });
-
-      el.addEventListener("mouseleave", () => {
-        activeHover?.remove();
-        activeHover = null;
-      });
-
-      markers.current.push(marker);
+      markersRef.current.push(marker);
     });
-  }, [stations, routes, selectedRouteId, loaded]);
+  }, [routes, stations, loaded, selectedRouteId]);
 
-  // Numbered stop markers (all routes)
+  // Hover tooltip
   useEffect(() => {
-    if (!map.current || !loaded) return;
+    if (!hoveredStation || !map.current) return;
 
-    stopMarkers.current.forEach((m) => m.remove());
-    stopMarkers.current = [];
+    const markerEl = markersRef.current.find(
+      (m) => (m.getElement() as HTMLElement).dataset?.stationKey === hoveredStation
+    );
+    if (!markerEl) return;
 
-    const renderedNameOnlyStops = new Set<string>();
+    const name = (markerEl.getElement() as HTMLElement).dataset?.stationName;
+    if (!name) return;
 
-    const resolveStopDisplayName = (stop: NonNullable<Route["stops"]>[number]) => {
-      if (stop.label) return stop.label;
-      if (stop.stationId) {
-        const st = stations.find((s) => s.id === stop.stationId);
-        if (st?.name) return st.name;
-      }
-      return null;
+    const popup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 20,
+      className: "station-tooltip",
+    })
+      .setLngLat(markerEl.getLngLat())
+      .setHTML(`<div style="background: #1a1a2e; color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">${name}</div>`)
+      .addTo(map.current);
+
+    return () => {
+      popup.remove();
     };
-
-    const isNameOnlyStop = (stop: NonNullable<Route["stops"]>[number]) => {
-      const name = resolveStopDisplayName(stop);
-      return !!name && /umuttepe/i.test(name);
-    };
-
-    routes.forEach((route, routeIndex) => {
-      if (!route.stops || route.stops.length === 0) return;
-
-      const sortedStops = [...route.stops].sort((a, b) => a.order - b.order);
-      const routeColor = resolveRouteColor(route.color, routeIndex);
-
-      for (const stop of sortedStops) {
-        const displayName = resolveStopDisplayName(stop);
-        const shouldNameOnly = isNameOnlyStop(stop);
-        if (shouldNameOnly) {
-          const key = stop.stationId
-            ? `station:${stop.stationId}`
-            : `coord:${stop.longitude.toFixed(6)},${stop.latitude.toFixed(6)}`;
-
-          // Render only one marker for this name-only stop to avoid overlapping numbers.
-          if (renderedNameOnlyStops.has(key)) continue;
-          renderedNameOnlyStops.add(key);
-
-          const el = document.createElement("div");
-          el.className = "route-stop-nameonly-marker";
-          el.style.zIndex = "3";
-
-          el.innerHTML = `
-            <div class="px-2.5 py-1.5 rounded-md bg-white text-slate-900 text-xs font-semibold shadow-xl border border-white/30">
-              ${displayName ?? ""}
-            </div>
-          `;
-
-          const marker = new maplibregl.Marker({ element: el, anchor: "center" })
-            .setLngLat([stop.longitude, stop.latitude])
-            .addTo(map.current!);
-
-          stopMarkers.current.push(marker);
-          continue;
-        }
-
-        const el = document.createElement("div");
-        el.className = "route-stop-order-marker";
-        el.style.zIndex = "2";
-        const number = stop.order + 1;
-
-        el.innerHTML = `
-          <div class="relative">
-            <div
-              class="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-extrabold shadow-xl border border-white/30"
-              style="background:${routeColor};color:#ffffff"
-            >
-              ${number}
-            </div>
-          </div>
-        `;
-
-        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
-          .setLngLat([stop.longitude, stop.latitude])
-          .addTo(map.current!);
-
-        // Optional brief label on hover (no black card)
-        if (displayName) {
-          let activeHover: { remove: () => void } | null = null;
-          el.addEventListener("mouseenter", () => {
-            if (!map.current) return;
-            activeHover?.remove();
-            const html = `
-              <div class="bg-white text-slate-900 px-2.5 py-1.5 rounded-md text-xs font-semibold">
-                ${number}. ${displayName}
-              </div>
-            `;
-            activeHover = createBriefPopup({
-              map: map.current,
-              lngLat: [stop.longitude, stop.latitude],
-              html,
-              offset: 16,
-              durationMs: 1200,
-            });
-          });
-          el.addEventListener("mouseleave", () => {
-            activeHover?.remove();
-            activeHover = null;
-          });
-        }
-
-        stopMarkers.current.push(marker);
-      }
-    });
-  }, [routes, loaded]);
+  }, [hoveredStation]);
 
   return (
     <div className="absolute inset-0 z-0">
       <div ref={mapContainer} className="w-full h-full" />
 
-      <style jsx global>{`
-        .route-popup .maplibregl-popup-content {
-          background: transparent;
-          padding: 0;
-          box-shadow: none;
-        }
-        .route-popup .maplibregl-popup-tip {
-          display: none;
-        }
+      {/* Basit Lejant - Sadece araç renkleri */}
+      {routes.length > 0 && (
+        <div className="absolute top-4 left-4 z-40 bg-white/95 backdrop-blur rounded-lg shadow-lg p-3 min-w-[160px]">
+          <div className="text-xs font-bold text-slate-600 mb-2">Araçlar</div>
+          <div className="space-y-1.5">
+            {routes.map((route, idx) => {
+              const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+              const isSelected = selectedRouteId === route.id;
+              const stopCount = route.stops?.filter((s) => !s.isHub).length || 0;
 
-        .route-hover-label .maplibregl-popup-content {
+              return (
+                <div
+                  key={route.id}
+                  onClick={() => onRouteHover?.(isSelected ? null : route.id)}
+                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all ${
+                    isSelected ? "bg-slate-100" : "hover:bg-slate-50"
+                  }`}
+                >
+                  <div
+                    style={{ background: color }}
+                    className="w-4 h-4 rounded-full border-2 border-white shadow"
+                  />
+                  <div className="flex-1 text-sm font-medium text-slate-700">
+                    {route.vehicleName}
+                  </div>
+                  <div
+                    style={{ background: color }}
+                    className="text-white text-xs font-bold px-1.5 py-0.5 rounded"
+                  >
+                    {stopCount}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        .station-tooltip .maplibregl-popup-content {
           background: transparent;
           padding: 0;
           box-shadow: none;
         }
-        .route-hover-label .maplibregl-popup-tip {
+        .station-tooltip .maplibregl-popup-tip {
           display: none;
         }
       `}</style>
