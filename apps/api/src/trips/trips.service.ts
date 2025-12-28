@@ -32,7 +32,7 @@ export class TripsService {
     // Simplified query for list view - with route info
     return this.prisma.trip.findMany({
       where,
-      take: filters?.limit || 20,
+      ...(filters?.limit ? { take: filters.limit } : {}),
       select: {
         id: true,
         status: true,

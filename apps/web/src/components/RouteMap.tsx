@@ -163,7 +163,8 @@ export default function RouteMap({
 
       if (coordinates.length < 2) return;
 
-      const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+      // Use color from route object (passed from parent)
+      const color = route.color;
       const isSelected = selectedRouteId === route.id;
       const hasSelection = !!selectedRouteId;
       const opacity = hasSelection && !isSelected ? 0.25 : 1;
@@ -229,7 +230,8 @@ export default function RouteMap({
 
     routes.forEach((route, routeIdx) => {
       if (!route.stops) return;
-      const color = ROUTE_COLORS[routeIdx % ROUTE_COLORS.length];
+      // Use color from route object (passed from parent)
+      const color = route.color;
 
       route.stops.forEach((stop) => {
         const key = `${stop.latitude.toFixed(5)},${stop.longitude.toFixed(5)}`;
