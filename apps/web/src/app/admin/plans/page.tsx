@@ -65,6 +65,9 @@ export default function PlansPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [panelSize, setPanelSize] = useState<
+    "collapsed" | "compact" | "expanded"
+  >("compact");
   const [fleetMode, setFleetMode] = useState<"unlimited" | "limited">(
     "unlimited"
   );
@@ -651,24 +654,77 @@ export default function PlansPage() {
       )}
 
       {/* Mission Control Panel (Bottom) */}
-      <section className="absolute bottom-6 left-6 right-6 h-[260px] z-30 flex flex-col bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+      <section
+        className={`absolute left-6 right-6 z-30 flex flex-col bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ease-in-out ${
+          panelSize === "collapsed"
+            ? "bottom-4 h-[52px]"
+            : panelSize === "compact"
+              ? "bottom-6 h-[260px]"
+              : "bottom-6 h-[400px]"
+        }`}
+      >
         {/* Panel Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/5">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-rounded text-primary">
+        <div className="flex items-center justify-between px-5 h-[52px] shrink-0 border-b border-white/5 bg-white/5">
+          <div
+            className="flex items-center gap-3 flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() =>
+              setPanelSize(panelSize === "collapsed" ? "compact" : "collapsed")
+            }
+          >
+            <span className="material-symbols-rounded text-primary text-xl">
               list_alt
             </span>
-            <h3 className="text-lg font-bold tracking-tight">
+            <h3 className="text-base font-bold tracking-tight">
               Planlanan Seferler
             </h3>
             <span className="bg-white/10 text-xs px-2 py-0.5 rounded-full text-slate-300">
               {vehicleCards.length} Aktif
             </span>
           </div>
+          <div className="flex items-center gap-1">
+            {/* Expand/Collapse button */}
+            <button
+              className={`p-1.5 rounded-lg transition-colors ${
+                panelSize === "expanded"
+                  ? "bg-primary/20 text-primary"
+                  : "hover:bg-white/10 text-slate-400"
+              }`}
+              onClick={() =>
+                setPanelSize(panelSize === "expanded" ? "compact" : "expanded")
+              }
+              title={
+                panelSize === "expanded" ? "Kompakt Görünüm" : "Detaylı Görünüm"
+              }
+            >
+              <span className="material-symbols-rounded text-[20px]">
+                {panelSize === "expanded"
+                  ? "collapse_content"
+                  : "expand_content"}
+              </span>
+            </button>
+            {/* Minimize button */}
+            <button
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              onClick={() =>
+                setPanelSize(
+                  panelSize === "collapsed" ? "compact" : "collapsed"
+                )
+              }
+              title={panelSize === "collapsed" ? "Paneli Aç" : "Paneli Küçült"}
+            >
+              <span
+                className={`material-symbols-rounded text-slate-400 transition-transform duration-300 ${panelSize === "collapsed" ? "" : "rotate-180"}`}
+              >
+                keyboard_arrow_up
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden glass-scroll px-6 py-5 flex items-center gap-4">
+        <div
+          className={`flex-1 overflow-x-auto overflow-y-hidden glass-scroll px-6 py-4 flex items-center gap-4 transition-opacity duration-200 ${panelSize === "collapsed" ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+        >
           {vehicleCards.length > 0 ? (
             <>
               {vehicleCards.map((card) => (
@@ -690,6 +746,7 @@ export default function PlansPage() {
                   onHover={(hovered) =>
                     hovered ? setSelectedRouteId(card.id) : undefined
                   }
+                  compact={panelSize === "compact"}
                 />
               ))}
             </>

@@ -296,6 +296,13 @@ export class PlansService {
           // Optimizer may create rented vehicles on the fly (unlimited_vehicles).
           // Persist them so plan route foreign keys are valid.
           // Sayaç ile kiralık araçları numaralandır
+          // Unique plaka için tarih ve random suffix kullan
+          const dateStr = data.planDate.replace(/-/g, "").slice(2); // YYMMDD
+          const randomSuffix = Math.random()
+            .toString(36)
+            .substring(2, 5)
+            .toUpperCase();
+
           let rentalCounter = 0;
           for (const route of optimizerResult.routes) {
             if (!route?.is_rented) continue;
@@ -305,8 +312,8 @@ export class PlansService {
             const vehicleName = String(
               route.vehicle_name || `Kiralık Araç ${rentalCounter}`
             );
-            // Kısa ve okunabilir plaka: K1, K2, K3...
-            const plateNumber = `41 KRL ${String(rentalCounter).padStart(3, "0")}`;
+            // Unique plaka: 41 KRL + tarih kısmı + sayaç (örn: 41 KRL 260112-1)
+            const plateNumber = `41 KRL ${dateStr}-${rentalCounter}${randomSuffix}`;
 
             await tx.vehicle.upsert({
               where: { id: vehicleId },
