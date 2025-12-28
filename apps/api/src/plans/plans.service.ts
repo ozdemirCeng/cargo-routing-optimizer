@@ -293,112 +293,120 @@ export class PlansService {
     try {
       planId = await this.prisma.$transaction(
         async (tx) => {
-        // Optimizer may create rented vehicles on the fly (unlimited_vehicles).
-        // Persist them so plan route foreign keys are valid.
-        for (const route of optimizerResult.routes) {
-          if (!route?.is_rented) continue;
+          // Optimizer may create rented vehicles on the fly (unlimited_vehicles).
+          // Persist them so plan route foreign keys are valid.
+          // Sayaç ile kiralık araçları numaralandır
+          let rentalCounter = 0;
+          for (const route of optimizerResult.routes) {
+            if (!route?.is_rented) continue;
+            rentalCounter++;
 
-          const vehicleId = String(route.vehicle_id);
-          const vehicleName = String(route.vehicle_name || "Kiralık Araç");
-          const plateNumber = (`RENT-${vehicleId}`.toUpperCase()).slice(0, 50);
-
-          await tx.vehicle.upsert({
-            where: { id: vehicleId },
-            update: {
-              name: vehicleName,
-              ownership: "rented",
-              capacityKg: 500,
-              rentalCost,
-              // These are plan-scoped rented vehicles. Keep them out of the
-              // general fleet/availability lists so they don't leak into other plans.
-              isActive: false,
-              status: "maintenance",
-            },
-            create: {
-              id: vehicleId,
-              plateNumber,
-              name: vehicleName,
-              ownership: "rented",
-              capacityKg: 500,
-              rentalCost,
-              isActive: false,
-              status: "maintenance",
-            },
-          });
-        }
-
-        const plan = await tx.plan.create({
-          data: {
-            planDate,
-            problemType: data.problemType,
-            status: "draft",
-            totalDistanceKm: optimizerResult.summary.total_distance_km,
-            totalCost: optimizerResult.summary.total_cost,
-            totalCargos: optimizerResult.summary.total_cargos,
-            totalWeightKg: optimizerResult.summary.total_weight_kg,
-            vehiclesUsed: optimizerResult.summary.vehicles_used,
-            vehiclesRented: optimizerResult.summary.vehicles_rented,
-            costPerKm,
-            rentalCost,
-            optimizerResult,
-            createdById: userId,
-          },
-        });
-
-        if (allAssignedCargoIds.length > 0) {
-          const updateRes = await tx.cargo.updateMany({
-            where: {
-              id: { in: allAssignedCargoIds },
-              status: "pending",
-              scheduledDate: { gte: dayStart, lt: dayEnd },
-            },
-            data: { status: "assigned" },
-          });
-
-          if (updateRes.count !== allAssignedCargoIds.length) {
-            throw new ConflictException(
-              "Bazı kargolar bu sırada başka bir plana atanmış; tekrar deneyin"
+            const vehicleId = String(route.vehicle_id);
+            const vehicleName = String(
+              route.vehicle_name || `Kiralık Araç ${rentalCounter}`
             );
-          }
-        }
+            // Kısa ve okunabilir plaka: K1, K2, K3...
+            const plateNumber = `41 KRL ${String(rentalCounter).padStart(3, "0")}`;
 
-        for (const route of optimizerResult.routes) {
-          const planRoute = await tx.planRoute.create({
-            data: {
-              planId: plan.id,
-              vehicleId: route.vehicle_id,
-              routeOrder: route.route_order,
-              totalDistanceKm: route.total_distance_km,
-              totalDurationMin: route.total_duration_minutes,
-              totalCost: route.total_cost,
-              totalWeightKg: route.total_weight_kg,
-              cargoCount: route.cargo_count,
-              routeStations: route.route_sequence.map((s: any) => s.station_id),
-              routePolyline: route.polyline,
-              routeDetails: route.route_sequence,
-            },
-          });
-
-          if (route.assigned_cargos?.length > 0) {
-            await tx.planRouteCargo.createMany({
-              data: route.assigned_cargos.map((assignedCargo: any) => ({
-                planRouteId: planRoute.id,
-                cargoId: assignedCargo.cargo_id,
-                pickupOrder: assignedCargo.pickup_order,
-              })),
+            await tx.vehicle.upsert({
+              where: { id: vehicleId },
+              update: {
+                name: vehicleName,
+                ownership: "rented",
+                capacityKg: 500,
+                rentalCost,
+                // These are plan-scoped rented vehicles. Keep them out of the
+                // general fleet/availability lists so they don't leak into other plans.
+                isActive: false,
+                status: "maintenance",
+              },
+              create: {
+                id: vehicleId,
+                plateNumber,
+                name: vehicleName,
+                ownership: "rented",
+                capacityKg: 500,
+                rentalCost,
+                isActive: false,
+                status: "maintenance",
+              },
             });
           }
 
-          await tx.trip.create({
+          const plan = await tx.plan.create({
             data: {
-              planRouteId: planRoute.id,
-              vehicleId: route.vehicle_id,
-              status: "scheduled",
+              planDate,
+              problemType: data.problemType,
+              status: "draft",
+              totalDistanceKm: optimizerResult.summary.total_distance_km,
+              totalCost: optimizerResult.summary.total_cost,
+              totalCargos: optimizerResult.summary.total_cargos,
+              totalWeightKg: optimizerResult.summary.total_weight_kg,
+              vehiclesUsed: optimizerResult.summary.vehicles_used,
+              vehiclesRented: optimizerResult.summary.vehicles_rented,
+              costPerKm,
+              rentalCost,
+              optimizerResult,
+              createdById: userId,
             },
           });
-        }
 
-        return plan.id;
+          if (allAssignedCargoIds.length > 0) {
+            const updateRes = await tx.cargo.updateMany({
+              where: {
+                id: { in: allAssignedCargoIds },
+                status: "pending",
+                scheduledDate: { gte: dayStart, lt: dayEnd },
+              },
+              data: { status: "assigned" },
+            });
+
+            if (updateRes.count !== allAssignedCargoIds.length) {
+              throw new ConflictException(
+                "Bazı kargolar bu sırada başka bir plana atanmış; tekrar deneyin"
+              );
+            }
+          }
+
+          for (const route of optimizerResult.routes) {
+            const planRoute = await tx.planRoute.create({
+              data: {
+                planId: plan.id,
+                vehicleId: route.vehicle_id,
+                routeOrder: route.route_order,
+                totalDistanceKm: route.total_distance_km,
+                totalDurationMin: route.total_duration_minutes,
+                totalCost: route.total_cost,
+                totalWeightKg: route.total_weight_kg,
+                cargoCount: route.cargo_count,
+                routeStations: route.route_sequence.map(
+                  (s: any) => s.station_id
+                ),
+                routePolyline: route.polyline,
+                routeDetails: route.route_sequence,
+              },
+            });
+
+            if (route.assigned_cargos?.length > 0) {
+              await tx.planRouteCargo.createMany({
+                data: route.assigned_cargos.map((assignedCargo: any) => ({
+                  planRouteId: planRoute.id,
+                  cargoId: assignedCargo.cargo_id,
+                  pickupOrder: assignedCargo.pickup_order,
+                })),
+              });
+            }
+
+            await tx.trip.create({
+              data: {
+                planRouteId: planRoute.id,
+                vehicleId: route.vehicle_id,
+                status: "scheduled",
+              },
+            });
+          }
+
+          return plan.id;
         },
         { timeout: 60000, maxWait: 60000 } // 60 saniye timeout
       );

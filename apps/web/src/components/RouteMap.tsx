@@ -161,10 +161,6 @@ export default function RouteMap({
       const hasSelection = !!selectedRouteId;
       const opacity = hasSelection && !isSelected ? 0.25 : 1;
 
-      // Her rota için farklı offset (üst üste binmeyi önle)
-      const offset =
-        routes.length > 1 ? (idx - (routes.length - 1) / 2) * 6 : 0;
-
       const sourceId = `route-line-${idx}`;
 
       map.current?.addSource(sourceId, {
@@ -185,7 +181,6 @@ export default function RouteMap({
           "line-color": "#1a1a2e",
           "line-width": isSelected ? 10 : 7,
           "line-opacity": opacity * 0.8,
-          "line-offset": offset,
         },
         layout: { "line-cap": "round", "line-join": "round" },
       });
@@ -199,7 +194,6 @@ export default function RouteMap({
           "line-color": color,
           "line-width": isSelected ? 6 : 4,
           "line-opacity": opacity,
-          "line-offset": offset,
         },
         layout: { "line-cap": "round", "line-join": "round" },
       });

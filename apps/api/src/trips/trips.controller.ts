@@ -30,21 +30,22 @@ export class TripsController {
   @ApiOperation({ summary: "Sefer listesi" })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "vehicleId", required: false })
-  @ApiQuery({ name: "startDate", required: false })
-  @ApiQuery({ name: "endDate", required: false })
+  @ApiQuery({
+    name: "planDate",
+    required: false,
+    description: "Plan tarihi (YYYY-MM-DD)",
+  })
   @ApiQuery({ name: "limit", required: false, type: Number })
   async findAll(
     @Query("status") status?: string,
     @Query("vehicleId") vehicleId?: string,
-    @Query("startDate") startDate?: string,
-    @Query("endDate") endDate?: string,
+    @Query("planDate") planDate?: string,
     @Query("limit") limit?: string
   ) {
     return this.tripsService.findAll({
       status,
       vehicleId,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
+      planDate: planDate || undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     });
   }

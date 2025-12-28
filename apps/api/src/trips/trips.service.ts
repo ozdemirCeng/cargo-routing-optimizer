@@ -8,17 +8,25 @@ export class TripsService {
   async findAll(filters?: {
     status?: string;
     vehicleId?: string;
-    startDate?: Date;
-    endDate?: Date;
+    planDate?: string;
     limit?: number;
   }) {
     const where: any = {};
     if (filters?.status) where.status = filters.status;
     if (filters?.vehicleId) where.vehicleId = filters.vehicleId;
-    if (filters?.startDate || filters?.endDate) {
-      where.createdAt = {};
-      if (filters.startDate) where.createdAt.gte = filters.startDate;
-      if (filters.endDate) where.createdAt.lte = filters.endDate;
+    if (filters?.planDate) {
+      // planDate formatı: YYYY-MM-DD
+      const dayStart = new Date(`${filters.planDate}T00:00:00`);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      where.planRoute = {
+        plan: {
+          planDate: {
+            gte: dayStart,
+            lt: dayEnd,
+          },
+        },
+      };
     }
 
     // Simplified query for list view - with route info

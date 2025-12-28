@@ -86,15 +86,27 @@ export default function TripsPage() {
         ),
   });
 
+  // date filtresini planDate'e çevir
+  const apiFilters = useMemo(() => {
+    const { date, ...rest } = filters;
+    if (date) {
+      return {
+        ...rest,
+        planDate: date,
+      };
+    }
+    return rest;
+  }, [filters]);
+
   const {
     data: trips,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["trips", filters],
+    queryKey: ["trips", apiFilters],
     queryFn: () =>
       tripsApi
-        .getAll(filters)
+        .getAll(apiFilters)
         .then((r) =>
           Array.isArray(r.data)
             ? r.data
@@ -371,14 +383,17 @@ export default function TripsPage() {
           </div>
         </div>
 
-        {/* Refresh Button */}
+        {/* Reset Filters Button */}
         <button
-          onClick={() => refetch()}
+          onClick={() => {
+            setFilters({ vehicleId: "", status: "", date: "" });
+            setCurrentPage(1);
+          }}
           className="w-full md:w-auto h-10 px-4 flex items-center justify-center gap-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
-          title="Yenile"
+          title="Filtreleri Sıfırla"
         >
           <span className="material-symbols-rounded">refresh</span>
-          <span className="md:hidden">Yenile</span>
+          <span className="md:hidden">Sıfırla</span>
         </button>
       </div>
 

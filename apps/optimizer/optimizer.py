@@ -388,7 +388,7 @@ class VRPOptimizer:
                 owned_subsets.extend(itertools.combinations(owned_vehicles, r))
 
         # Heuristic limits (keep runtime bounded)
-        max_extra_rentals = 3
+        max_extra_rentals = 100  # Sınırsız araç problemi için yüksek limit
         attempts_per_scenario = 8
 
         best: Optional[CandidateSolution] = None
