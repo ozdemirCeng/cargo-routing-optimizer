@@ -185,6 +185,7 @@ function DonutChart({
     value: number;
     color: string;
     label: string;
+    sublabel?: string;
     isRented?: boolean;
   }[];
   centerValue: string;
@@ -238,19 +239,28 @@ function DonutChart({
         </div>
       </div>
 
-      <div className="w-full mt-6 flex flex-wrap justify-center gap-4">
+      <div className="w-full mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
         {segments.map((segment, idx) => (
-          <div key={idx} className="flex items-center gap-2">
+          <div key={idx} className="flex items-center gap-2 min-w-[100px]">
             <span
-              className={`w-3 h-3 rounded-full ${segment.isRented ? "ring-1 ring-offset-1 ring-offset-slate-900 ring-amber-400" : ""}`}
+              className={`w-3 h-3 rounded-full flex-shrink-0 ${segment.isRented ? "ring-1 ring-offset-1 ring-offset-slate-900 ring-amber-400" : ""}`}
               style={{ backgroundColor: segment.color }}
             />
-            <div>
+            <div className="min-w-0">
               <p
-                className={`text-xs font-medium ${segment.isRented ? "text-amber-400" : "text-slate-400"}`}
+                className={`text-xs font-medium truncate ${segment.isRented ? "text-amber-400" : "text-slate-400"}`}
+                title={segment.sublabel || segment.label}
               >
                 {segment.label}
               </p>
+              {segment.sublabel && (
+                <p
+                  className="text-[10px] text-slate-500 truncate"
+                  title={segment.sublabel}
+                >
+                  {segment.sublabel}
+                </p>
+              )}
               <p className="text-xs font-bold text-white">%{segment.value}</p>
             </div>
           </div>
@@ -360,17 +370,12 @@ export default function AdminDashboard() {
   }, [costAnalysis]);
 
   // Donut chart segments from real vehicle utilization data - only show used vehicles
+  // Kiralık araçları gruplandırarak göster
   const donutSegments = useMemo(() => {
     // Şirket araçları için renkler (mor, turkuaz, pembe, yeşil)
     const ownedColors = ["#8b5cf6", "#06b6d4", "#ec4899", "#10b981", "#6366f1"];
-    // Kiralık araçlar için renkler (turuncu tonları)
-    const rentedColors = [
-      "#f59e0b",
-      "#f97316",
-      "#fb923c",
-      "#fbbf24",
-      "#d97706",
-    ];
+    // Kiralık araçlar için renk (turuncu)
+    const rentedColor = "#f97316";
 
     if (summary?.vehicleUtilization && summary.vehicleUtilization.length > 0) {
       // Filter only used vehicles (utilization > 0)
@@ -379,32 +384,62 @@ export default function AdminDashboard() {
       );
 
       if (usedVehicles.length > 0) {
-        let ownedIdx = 0;
-        let rentedIdx = 0;
+        // Şirket ve kiralık araçları ayır
+        const ownedVehicles: any[] = [];
+        const rentedVehicles: any[] = [];
 
-        return usedVehicles.map((v: any) => {
-          // Check ownership field from API, fallback to name check
+        usedVehicles.forEach((v: any) => {
           const isRented =
             v.ownership === "rented" ||
             v.vehicleName?.toLowerCase().includes("kiralık") ||
             v.plateNumber?.toLowerCase().includes("rent");
 
-          let color: string;
           if (isRented) {
-            color = rentedColors[rentedIdx % rentedColors.length];
-            rentedIdx++;
+            rentedVehicles.push(v);
           } else {
-            color = ownedColors[ownedIdx % ownedColors.length];
-            ownedIdx++;
+            ownedVehicles.push(v);
           }
-
-          return {
-            value: v.utilization || 1,
-            color,
-            label: v.vehicleName || `Araç`,
-            isRented,
-          };
         });
+
+        const segments: any[] = [];
+
+        // Şirket araçlarını ayrı ayrı ekle
+        ownedVehicles.forEach((v, idx) => {
+          segments.push({
+            value: v.utilization || 1,
+            color: ownedColors[idx % ownedColors.length],
+            label: v.vehicleName || `Araç ${idx + 1}`,
+            sublabel: v.plateNumber || "",
+            isRented: false,
+          });
+        });
+
+        // Kiralık araçları tek segment olarak gruplandır
+        if (rentedVehicles.length > 0) {
+          const avgUtilization = Math.round(
+            rentedVehicles.reduce((sum, v) => sum + (v.utilization || 0), 0) /
+              rentedVehicles.length
+          );
+
+          segments.push({
+            value: avgUtilization || 1,
+            color: rentedColor,
+            label: `Kiralık Araçlar (${rentedVehicles.length})`,
+            sublabel: `Ort. %${avgUtilization} doluluk`,
+            isRented: true,
+          });
+        }
+
+        return segments.length > 0
+          ? segments
+          : [
+              {
+                value: 1,
+                color: "#8b5cf6",
+                label: "Veri Yok",
+                isRented: false,
+              },
+            ];
       }
     }
 
