@@ -90,7 +90,11 @@ describe('PlansService', () => {
     vehiclesService.findAvailable.mockResolvedValue([
       { id: 'v1', name: 'V1', plateNumber: '34ABC34', capacityKg: 500, ownership: 'owned', rentalCost: 0 },
     ]);
-    parametersService.getAll.mockResolvedValue({ cost_per_km: 1, rental_cost_500kg: 200 });
+    parametersService.getAll.mockResolvedValue({
+      cost_per_km: 1,
+      rental_cost_500kg: 200,
+      rental_capacity_kg: 500,
+    });
     routingService.getDistanceMatrix.mockResolvedValue({});
 
     httpService.post.mockReturnValue(
@@ -125,7 +129,11 @@ describe('PlansService', () => {
     vehiclesService.findAvailable.mockResolvedValue([
       { id: 'v1', name: 'V1', plateNumber: '34ABC34', capacityKg: 500, ownership: 'owned', rentalCost: 0 },
     ]);
-    parametersService.getAll.mockResolvedValue({ cost_per_km: 1, rental_cost_500kg: 200 });
+    parametersService.getAll.mockResolvedValue({
+      cost_per_km: 1,
+      rental_cost_500kg: 200,
+      rental_capacity_kg: 500,
+    });
     routingService.getDistanceMatrix.mockResolvedValue({});
 
     httpService.post.mockReturnValue(

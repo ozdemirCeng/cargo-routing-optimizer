@@ -162,6 +162,8 @@ export class PlansService {
     const costPerKm = data.parameters?.costPerKm || params.cost_per_km || 1;
     const rentalCost =
       data.parameters?.rentalCost || params.rental_cost_500kg || 200;
+    const rentalCapacityKg =
+      data.parameters?.rentalCapacityKg || params.rental_capacity_kg || 500;
 
     // 5. Distance matrix'i hazırla
     const allStationIds = [
@@ -202,7 +204,7 @@ export class PlansService {
       parameters: {
         cost_per_km: costPerKm,
         rental_cost: rentalCost,
-        rental_capacity_kg: 500,
+        rental_capacity_kg: rentalCapacityKg,
       },
       distance_matrix: distanceMatrix,
     };
@@ -211,8 +213,18 @@ export class PlansService {
     const optimizerUrl =
       this.configService.get<string>("OPTIMIZER_URL") ||
       "http://localhost:5000";
-    const optimizerTimeoutMs =
+    const optimizerTimeoutBaseMs =
       this.configService.get<number>("OPTIMIZER_TIMEOUT_MS") || 15000;
+    const totalCargoCount = stationsWithCargo.reduce(
+      (sum, s) => sum + Number(s.cargoCount || 0),
+      0
+    );
+    const optimizerTimeoutMs = Math.min(
+      120000,
+      optimizerTimeoutBaseMs +
+        totalCargoCount * 200 +
+        stationsWithCargo.length * 500
+    );
     let optimizerResult: any;
 
     try {
@@ -320,7 +332,7 @@ export class PlansService {
               update: {
                 name: vehicleName,
                 ownership: "rented",
-                capacityKg: 500,
+                capacityKg: rentalCapacityKg,
                 rentalCost,
                 // These are plan-scoped rented vehicles. Keep them out of the
                 // general fleet/availability lists so they don't leak into other plans.
@@ -332,7 +344,7 @@ export class PlansService {
                 plateNumber,
                 name: vehicleName,
                 ownership: "rented",
-                capacityKg: 500,
+                capacityKg: rentalCapacityKg,
                 rentalCost,
                 isActive: false,
                 status: "maintenance",

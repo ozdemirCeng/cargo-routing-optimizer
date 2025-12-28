@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cargosApi } from "@/lib/api";
 import dynamic from "next/dynamic";
 
-const Map = dynamic(() => import("@/components/Map"), { ssr: false });
+const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
 
 const VEHICLE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
@@ -62,9 +62,10 @@ function TrackCargoContent() {
     ? ((route as any).stations as any[])
     : [];
   const mapStations = routeStations
-    .map((s: any) => {
+    .map((s: any, index: number) => {
       const latitude = Number(s.latitude);
       const longitude = Number(s.longitude);
+      const order = Number.isFinite(Number(s.order)) ? Number(s.order) : index;
 
       const cargoCountRaw =
         s.cargoCount === null || s.cargoCount === undefined
@@ -88,6 +89,7 @@ function TrackCargoContent() {
         code: String(s.code ?? ""),
         latitude,
         longitude,
+        order,
         isHub: Boolean(s.isHub),
         cargoCount,
         totalWeightKg,
@@ -104,11 +106,26 @@ function TrackCargoContent() {
   const mapRoutes = route
     ? [
         {
+          id: route.vehicleId || "route",
           vehicleId: route.vehicleId,
           vehicleName: route.vehicleName,
           color: VEHICLE_COLORS[0],
           polyline: route.polyline,
-          stations: mapStations,
+          status: "active" as const,
+          loadPercentage: 0,
+          cost: Number(route.totalCost ?? 0),
+          stops: mapStations.map((s: any, index: number) => ({
+            order: Number.isFinite(Number(s.order)) ? Number(s.order) : index,
+            stationId: s.id,
+            label: s.code || s.name,
+            latitude: s.latitude,
+            longitude: s.longitude,
+            isHub: s.isHub,
+          })),
+          stations: mapStations.map((s: any) => ({
+            name: s.name,
+            code: s.code,
+          })),
         },
       ]
     : [];
@@ -310,11 +327,11 @@ function TrackCargoContent() {
                   </div>
 
                   {/* Map */}
-                  <div className="flex-1 rounded-xl overflow-hidden">
-                    <Map
+                  <div className="relative flex-1 rounded-xl overflow-hidden min-h-[320px]">
+                    <RouteMap
                       stations={mapStations}
                       routes={mapRoutes}
-                      height="100%"
+                      selectedRouteId={mapRoutes[0]?.id ?? null}
                     />
                   </div>
                 </div>

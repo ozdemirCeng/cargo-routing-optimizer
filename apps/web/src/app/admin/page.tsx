@@ -343,6 +343,12 @@ export default function AdminDashboard() {
     return { totalCost, totalDistance, vehiclesUsed, totalVehicles, avgLoad };
   }, [summary]);
 
+  const vehicleUtilization = useMemo(() => {
+    return Array.isArray(summary?.vehicleUtilization)
+      ? summary.vehicleUtilization
+      : [];
+  }, [summary]);
+
   // Bar chart data from cost analysis - use real scenario data
   const barChartData = useMemo(() => {
     if (
@@ -377,9 +383,9 @@ export default function AdminDashboard() {
     // Kiralık araçlar için renk (turuncu)
     const rentedColor = "#f97316";
 
-    if (summary?.vehicleUtilization && summary.vehicleUtilization.length > 0) {
+    if (vehicleUtilization.length > 0) {
       // Filter only used vehicles (utilization > 0)
-      const usedVehicles = summary.vehicleUtilization.filter(
+      const usedVehicles = vehicleUtilization.filter(
         (v: any) => v.isUsed && v.utilization > 0
       );
 
@@ -523,8 +529,8 @@ export default function AdminDashboard() {
               iconColor="text-amber-400"
               extra={
                 <div className="flex flex-wrap gap-1.5 mt-3 justify-center w-full">
-                  {summary?.vehicleUtilization
-                    ?.filter((v: any) => v.isUsed)
+                  {vehicleUtilization
+                    .filter((v: any) => v.isUsed)
                     .slice(0, 5)
                     .map((v: any, idx: number) => (
                       <div
@@ -574,11 +580,6 @@ export default function AdminDashboard() {
               <h2 className="text-lg font-bold text-white">
                 Araç Kapasite Kullanımı
               </h2>
-              <button className="text-slate-400 hover:text-white">
-                <span className="material-symbols-rounded text-[20px]">
-                  more_vert
-                </span>
-              </button>
             </div>
             <DonutChart
               segments={donutSegments}

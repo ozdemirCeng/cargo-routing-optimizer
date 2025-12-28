@@ -7,6 +7,7 @@ import { parametersApi } from "@/lib/api";
 interface Parameters {
   cost_per_km: number;
   rental_cost_500kg: number;
+  rental_capacity_kg: number;
   default_capacity_small: number;
   default_capacity_medium: number;
   default_capacity_large: number;
@@ -19,6 +20,7 @@ export default function ParametersPage() {
   const [formData, setFormData] = useState<Parameters>({
     cost_per_km: 1,
     rental_cost_500kg: 200,
+    rental_capacity_kg: 500,
     default_capacity_small: 500,
     default_capacity_medium: 750,
     default_capacity_large: 1000,
@@ -47,6 +49,7 @@ export default function ParametersPage() {
       setFormData({
         cost_per_km: (parameters as any).cost_per_km || 1,
         rental_cost_500kg: (parameters as any).rental_cost_500kg || 200,
+        rental_capacity_kg: (parameters as any).rental_capacity_kg || 500,
         default_capacity_small:
           (parameters as any).default_capacity_small || 500,
         default_capacity_medium:
@@ -254,6 +257,29 @@ export default function ParametersPage() {
                       setFormData({
                         ...formData,
                         default_capacity_large: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    min={100}
+                    step={50}
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-500 text-xs font-semibold">
+                    kg
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Kiralık Araç Kapasitesi
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    className="block w-full rounded-lg bg-slate-800/80 border border-slate-700/50 text-white text-sm py-2.5 pl-3 pr-12 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    value={formData.rental_capacity_kg}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        rental_capacity_kg: parseFloat(e.target.value) || 0,
                       })
                     }
                     min={100}

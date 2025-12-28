@@ -96,7 +96,16 @@ export default function ScenariosPage() {
   // Stations query
   const { data: stationsData } = useQuery({
     queryKey: ["stations"],
-    queryFn: () => stationsApi.getAll(),
+    queryFn: () =>
+      stationsApi
+        .getAll()
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
 
   const { data: vehiclesData } = useQuery({

@@ -10,6 +10,10 @@ class PlanParametersDto {
   @ApiProperty({ required: false, example: 200 })
   @IsOptional()
   rentalCost?: number;
+
+  @ApiProperty({ required: false, example: 500 })
+  @IsOptional()
+  rentalCapacityKg?: number;
 }
 
 export class CreatePlanDto {

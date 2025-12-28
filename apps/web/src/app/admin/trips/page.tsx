@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { tripsApi, vehiclesApi } from "@/lib/api";
 import dynamic from "next/dynamic";
 
-const Map = dynamic(() => import("@/components/Map"), { ssr: false });
+const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
 
 const VEHICLE_COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f97316", "#8b5cf6"];
 
@@ -61,6 +62,7 @@ interface Vehicle {
 
 export default function TripsPage() {
   const queryClient = useQueryClient();
+  const [mounted, setMounted] = useState(false);
   const [filters, setFilters] = useState({
     vehicleId: "",
     status: "",
@@ -71,6 +73,10 @@ export default function TripsPage() {
   const [cargoModalTrip, setCargoModalTrip] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: vehicles } = useQuery({
     queryKey: ["vehicles"],
@@ -201,16 +207,38 @@ export default function TripsPage() {
 
   const mapRoutes = useMemo(() => {
     if (!selectedTripDetail?.planRoute?.routePolyline) return [];
+    const routeDetails = Array.isArray(
+      selectedTripDetail?.planRoute?.routeDetails
+    )
+      ? (selectedTripDetail.planRoute.routeDetails as any[])
+      : [];
+
     return [
       {
+        id: selectedTripDetail.planRoute?.id || selectedTripDetail.id,
         vehicleId: selectedTripDetail.vehicleId,
-        vehicleName: selectedTripDetail.vehicle?.plateNumber || "",
+        vehicleName: selectedTripDetail.vehicle?.name || "",
+        plateNumber: selectedTripDetail.vehicle?.plateNumber || "",
         color: VEHICLE_COLORS[0],
         polyline: selectedTripDetail.planRoute.routePolyline,
-        stations: mapStations,
+        status: "active" as const,
+        loadPercentage: 0,
+        cost: Number(selectedTripDetail.planRoute?.totalCost || 0),
+        stops: routeDetails.map((s: any, order: number) => ({
+          order,
+          stationId: s.station_id,
+          label: s.station_code || s.station_name,
+          latitude: Number(s.latitude),
+          longitude: Number(s.longitude),
+          isHub: s.is_hub,
+        })),
+        stations: routeDetails.map((s: any) => ({
+          name: s.station_name,
+          code: s.station_code,
+        })),
       },
     ];
-  }, [selectedTripDetail, mapStations]);
+  }, [selectedTripDetail]);
 
   if (isLoading) {
     return (
@@ -615,148 +643,151 @@ export default function TripsPage() {
         </div>
 
         {/* Cargo Detail Modal */}
-        {cargoModalTrip && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setCargoModalTrip(null)}
-          >
-            <div
-              className="glass-panel rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
-                    <span className="material-symbols-rounded">
-                      inventory_2
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white">Kargo Detayları</h3>
-                    <p className="text-xs text-slate-400">
-                      {tripDetail?.vehicle?.plateNumber || "Yükleniyor..."} -{" "}
-                      {tripDetail?.vehicle?.name || ""}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setCargoModalTrip(null)}
-                  className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+        {cargoModalTrip && mounted
+          ? createPortal(
+              <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={() => setCargoModalTrip(null)}
+              >
+                <div
+                  className="glass-panel rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <span className="material-symbols-rounded">close</span>
-                </button>
-              </div>
-
-              <div className="p-4 overflow-auto flex-1">
-                {isLoadingDetail ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                  </div>
-                ) : tripDetail?.planRoute?.cargos &&
-                  tripDetail.planRoute.cargos.length > 0 ? (
-                  <div className="space-y-4">
-                    {/* Summary */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="glass-card rounded-xl p-3 text-center">
-                        <div className="text-2xl font-bold text-white">
-                          {tripDetail.planRoute.cargos.length}
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          Toplam Kargo
-                        </div>
+                  <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
+                        <span className="material-symbols-rounded">
+                          inventory_2
+                        </span>
                       </div>
-                      <div className="glass-card rounded-xl p-3 text-center">
-                        <div className="text-2xl font-bold text-white">
-                          {Number(
-                            tripDetail.planRoute.totalWeightKg || 0
-                          ).toFixed(1)}{" "}
-                          kg
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          Toplam Ağırlık
-                        </div>
-                      </div>
-                      <div className="glass-card rounded-xl p-3 text-center">
-                        <div className="text-2xl font-bold text-emerald-400">
-                          {Number(tripDetail.planRoute.totalCost || 0).toFixed(
-                            2
-                          )}{" "}
-                          ₺
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          Rota Maliyeti
-                        </div>
+                      <div>
+                        <h3 className="font-bold text-white">Kargo Detayları</h3>
+                        <p className="text-xs text-slate-400">
+                          {tripDetail?.vehicle?.plateNumber || "Yükleniyor..."} -{" "}
+                          {tripDetail?.vehicle?.name || ""}
+                        </p>
                       </div>
                     </div>
+                    <button
+                      onClick={() => setCargoModalTrip(null)}
+                      className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                    >
+                      <span className="material-symbols-rounded">close</span>
+                    </button>
+                  </div>
 
-                    {/* Cargo List */}
-                    <div className="space-y-2">
-                      <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-2">
-                        Kargolar ve Kullanıcılar
+                  <div className="p-4 overflow-auto flex-1">
+                    {isLoadingDetail ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
                       </div>
-                      {tripDetail.planRoute.cargos.map(
-                        (prc: any, index: number) => (
-                          <div
-                            key={prc.id || index}
-                            className="glass-card rounded-xl p-3 flex items-center gap-4 hover:bg-slate-800/60 transition-colors"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                              {index + 1}
+                    ) : tripDetail?.planRoute?.cargos &&
+                      tripDetail.planRoute.cargos.length > 0 ? (
+                      <div className="space-y-4">
+                        {/* Summary */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="glass-card rounded-xl p-3 text-center">
+                            <div className="text-2xl font-bold text-white">
+                              {tripDetail.planRoute.cargos.length}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-white truncate">
-                                  {prc.cargo?.user?.fullName || "Bilinmiyor"}
-                                </span>
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">
-                                  #
-                                  {prc.cargo?.id?.slice(-6).toUpperCase() ||
-                                    "-"}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                                <span className="flex items-center gap-1">
-                                  <span className="material-symbols-rounded text-[14px]">
-                                    scale
-                                  </span>
-                                  {prc.cargo?.weightKg || 0} kg
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <span className="material-symbols-rounded text-[14px]">
-                                    location_on
-                                  </span>
-                                  {prc.cargo?.originStation?.name || "-"}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium text-emerald-400">
-                                {(
-                                  Number(prc.cargo?.weightKg || 0) * 0.5
-                                ).toFixed(2)}{" "}
-                                ₺
-                              </div>
-                              <div className="text-xs text-slate-500">
-                                tahmini
-                              </div>
+                            <div className="text-xs text-slate-400">
+                              Toplam Kargo
                             </div>
                           </div>
-                        )
-                      )}
-                    </div>
+                          <div className="glass-card rounded-xl p-3 text-center">
+                            <div className="text-2xl font-bold text-white">
+                              {Number(
+                                tripDetail.planRoute.totalWeightKg || 0
+                              ).toFixed(1)}{" "}
+                              kg
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              Toplam Ağırlık
+                            </div>
+                          </div>
+                          <div className="glass-card rounded-xl p-3 text-center">
+                            <div className="text-2xl font-bold text-emerald-400">
+                              {Number(tripDetail.planRoute.totalCost || 0).toFixed(
+                                2
+                              )}{" "}
+                              ₺
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              Rota Maliyeti
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cargo List */}
+                        <div className="space-y-2">
+                          <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-2">
+                            Kargolar ve Kullanıcılar
+                          </div>
+                          {tripDetail.planRoute.cargos.map(
+                            (prc: any, index: number) => (
+                              <div
+                                key={prc.id || index}
+                                className="glass-card rounded-xl p-3 flex items-center gap-4 hover:bg-slate-800/60 transition-colors"
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
+                                  {index + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-white truncate">
+                                      {prc.cargo?.user?.fullName || "Bilinmiyor"}
+                                    </span>
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">
+                                      #
+                                      {prc.cargo?.id?.slice(-6).toUpperCase() ||
+                                        "-"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                                    <span className="flex items-center gap-1">
+                                      <span className="material-symbols-rounded text-[14px]">
+                                        scale
+                                      </span>
+                                      {prc.cargo?.weightKg || 0} kg
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <span className="material-symbols-rounded text-[14px]">
+                                        location_on
+                                      </span>
+                                      {prc.cargo?.originStation?.name || "-"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-medium text-emerald-400">
+                                    {(
+                                      Number(prc.cargo?.weightKg || 0) * 0.5
+                                    ).toFixed(2)}{" "}
+                                    ₺
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    tahmini
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                        <span className="material-symbols-rounded text-[48px] opacity-50 mb-2">
+                          inventory_2
+                        </span>
+                        <span>Bu seferde kargo bulunamadı</span>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                    <span className="material-symbols-rounded text-[48px] opacity-50 mb-2">
-                      inventory_2
-                    </span>
-                    <span>Bu seferde kargo bulunamadı</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+                </div>
+              </div>,
+              document.body
+            )
+          : null}
 
         {/* Map Panel */}
         {selectedTrip && (
@@ -781,37 +812,13 @@ export default function TripsPage() {
               </button>
             </div>
 
-            {/* Waypoints - API'den gelen routeDetails kullan */}
-            {selectedTripDetail?.planRoute?.routeDetails &&
-              (selectedTripDetail.planRoute.routeDetails as any[]).length >
-                0 && (
-                <div className="p-4 border-b border-white/10">
-                  <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-2">
-                    Duraklar (
-                    {
-                      (selectedTripDetail.planRoute.routeDetails as any[])
-                        .length
-                    }{" "}
-                    durak)
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {(selectedTripDetail.planRoute.routeDetails as any[]).map(
-                      (stop: any, i: number) => (
-                        <span
-                          key={stop.station_id || i}
-                          className={`px-2 py-1 rounded-lg text-xs border ${stop.is_hub ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : "bg-slate-800/50 text-slate-300 border-white/5"}`}
-                        >
-                          {i + 1}. {stop.station_name}
-                        </span>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-
             {/* Map */}
-            <div className="flex-1 min-h-[400px]">
-              <Map stations={mapStations} routes={mapRoutes} height="100%" />
+            <div className="relative flex-1 min-h-[400px]">
+              <RouteMap
+                stations={mapStations}
+                routes={mapRoutes}
+                selectedRouteId={mapRoutes[0]?.id ?? null}
+              />
             </div>
           </div>
         )}

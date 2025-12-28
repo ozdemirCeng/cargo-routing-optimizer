@@ -55,6 +55,7 @@ export class VehiclesService {
         capacityKg: data.capacityKg,
         ownership: (data.ownership || "owned") as any,
         rentalCost: data.rentalCost || 0,
+        isActive: data.isActive ?? true,
       },
     });
   }
@@ -102,6 +103,18 @@ export class VehiclesService {
 
   async delete(id: string) {
     await this.findById(id);
+    const [planRouteCount, tripCount] = await Promise.all([
+      this.prisma.planRoute.count({ where: { vehicleId: id } }),
+      this.prisma.trip.count({ where: { vehicleId: id } }),
+    ]);
+
+    if (planRouteCount > 0 || tripCount > 0) {
+      return this.prisma.vehicle.update({
+        where: { id },
+        data: { isActive: false },
+      });
+    }
+
     return this.prisma.vehicle.delete({
       where: { id },
     });

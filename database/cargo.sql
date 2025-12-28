@@ -528,6 +528,7 @@ INSERT INTO system_parameters (org_id, param_key, param_value, description, upda
 VALUES
 ('11111111-1111-1111-1111-111111111111', 'cost_per_km',        '1.00'::jsonb,  'Kilometre başına maliyet (birim)', '00000000-0000-0000-0000-000000000001'),
 ('11111111-1111-1111-1111-111111111111', 'rental_cost_500kg',  '200.00'::jsonb, '500 kg kapasiteli kiralık araç maliyeti', '00000000-0000-0000-0000-000000000001'),
+('11111111-1111-1111-1111-111111111111', 'rental_capacity_kg',  '500.00'::jsonb, 'Kiral?k ara? kapasitesi (kg)', '00000000-0000-0000-0000-000000000001'),
 ('11111111-1111-1111-1111-111111111111', 'default_fuel_consumption', '0.10'::jsonb, 'Varsayılan yakıt tüketimi (lt/km)', '00000000-0000-0000-0000-000000000001'),
 ('11111111-1111-1111-1111-111111111111', 'average_speed_kmh',  '50.00'::jsonb, 'Ortalama araç hızı (km/saat)', '00000000-0000-0000-0000-000000000001')
 ON CONFLICT (org_id, param_key) DO NOTHING;
@@ -2515,6 +2516,7 @@ insert into public.system_parameters (org_id, param_key, param_value, descriptio
 values
   ('11111111-1111-1111-1111-111111111111','cost_per_km', 1.00, 'Kilometre başına maliyet (birim)'),
   ('11111111-1111-1111-1111-111111111111','rental_cost_500kg', 200.00, '500 kg kapasiteli kiralık araç maliyeti'),
+  ('11111111-1111-1111-1111-111111111111','rental_capacity_kg', 500.00, 'Kiral?k ara? kapasitesi (kg)'),
   ('11111111-1111-1111-1111-111111111111','fuel_price_per_liter', 45.00, 'Litre başına yakıt fiyatı (TL)'),
   ('11111111-1111-1111-1111-111111111111','default_fuel_consumption', 0.10, 'Varsayılan yakıt tüketimi (lt/km)'),
   ('11111111-1111-1111-1111-111111111111','max_working_hours', 8.00, 'Maksimum günlük çalışma saati'),

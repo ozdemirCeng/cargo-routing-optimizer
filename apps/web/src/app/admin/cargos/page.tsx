@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cargosApi, stationsApi, usersApi } from "@/lib/api";
 
@@ -47,7 +48,9 @@ interface CargoForm {
 
 export default function CargosPage() {
   const queryClient = useQueryClient();
+  const [mounted, setMounted] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewOnly, setViewOnly] = useState(false);
   const [editingCargo, setEditingCargo] = useState<Cargo | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -67,17 +70,48 @@ export default function CargosPage() {
 
   const { data: cargos, isLoading } = useQuery({
     queryKey: ["cargos", filters],
-    queryFn: () => cargosApi.getAll(filters).then((r) => r.data),
+    queryFn: () =>
+      cargosApi
+        .getAll(filters)
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: stations } = useQuery({
     queryKey: ["stations"],
-    queryFn: () => stationsApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      stationsApi
+        .getAll()
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
 
   const { data: users } = useQuery({
     queryKey: ["users"],
-    queryFn: () => usersApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      usersApi
+        .getAll()
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
 
   const createMutation = useMutation({
@@ -159,7 +193,11 @@ export default function CargosPage() {
     };
   }, [cargos]);
 
-  const handleOpenDialog = (cargo?: Cargo) => {
+  const handleOpenDialog = (
+    cargo?: Cargo,
+    options?: { viewOnly?: boolean }
+  ) => {
+    setViewOnly(Boolean(options?.viewOnly));
     if (cargo) {
       setEditingCargo(cargo);
       setFormData({
@@ -186,6 +224,7 @@ export default function CargosPage() {
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
+    setViewOnly(false);
     setEditingCargo(null);
     setFormData({
       originStationId: "",
@@ -197,6 +236,7 @@ export default function CargosPage() {
   };
 
   const handleSubmit = () => {
+    if (viewOnly) return;
     const data: any = {
       originStationId: formData.originStationId,
       weightKg: parseFloat(formData.weightKg),
@@ -526,6 +566,9 @@ export default function CargosPage() {
                     <td className="px-4 py-4 rounded-r-lg text-right">
                       <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                         <button
+                          onClick={() =>
+                            handleOpenDialog(cargo, { viewOnly: true })
+                          }
                           className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
                           title="Görüntüle"
                         >
@@ -555,14 +598,6 @@ export default function CargosPage() {
                             </button>
                           </>
                         )}
-                        <button
-                          className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-                          title="Daha fazla"
-                        >
-                          <span className="material-symbols-rounded text-[18px]">
-                            more_vert
-                          </span>
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -590,20 +625,35 @@ export default function CargosPage() {
             </span>{" "}
             kayıt gösteriliyor
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 mr-2">Rows per page:</span>
-            <select
-              className="bg-black/20 border border-white/10 text-white text-xs rounded px-2 py-1 focus:outline-none focus:border-primary"
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-            >
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 mr-2">Rows per page:</span>
+              <div className="relative">
+                <select
+                  className="bg-black/20 border border-white/10 text-white text-xs rounded pl-2 pr-7 py-1 focus:outline-none focus:border-primary appearance-none"
+                  value={rowsPerPage}
+                  onChange={(e) => {
+                    setRowsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+                <svg
+                  className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none w-3.5 h-3.5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </div>
             <div className="flex items-center gap-1 ml-4">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -667,244 +717,277 @@ export default function CargosPage() {
       </div>
 
       {/* Dialog Modal */}
-      {dialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={handleCloseDialog}
-          ></div>
-
-          {/* Modal */}
-          <div className="relative bg-slate-900/40 backdrop-blur-2xl rounded-2xl w-full max-w-lg mx-4 shadow-2xl border border-white/10 animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                  <span className="material-symbols-rounded text-blue-400">
-                    {editingCargo ? "edit" : "add_box"}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    {editingCargo ? "Kargo Düzenle" : "Yeni Kargo"}
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    {editingCargo
-                      ? "Kargo bilgilerini güncelleyin"
-                      : "Yeni kargo kaydı oluşturun"}
-                  </p>
-                </div>
-              </div>
-              <button
+      {dialogOpen && mounted
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={handleCloseDialog}
-                className="h-8 w-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
-              >
-                <span className="material-symbols-rounded">close</span>
-              </button>
-            </div>
+              ></div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-              {/* Error Alert */}
-              {(createMutation.isError || updateMutation.isError) && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
-                  <span className="material-symbols-rounded">error</span>
-                  <span className="text-sm">
-                    {(createMutation.error as any)?.response?.data?.message ||
-                      (updateMutation.error as any)?.response?.data?.message ||
-                      "İşlem sırasında hata oluştu"}
-                  </span>
+              {/* Modal */}
+              <div className="relative bg-slate-900/40 backdrop-blur-2xl rounded-2xl w-full max-w-lg mx-4 shadow-2xl border border-white/10 animate-in fade-in zoom-in-95 duration-200">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                      <span className="material-symbols-rounded text-blue-400">
+                        {viewOnly
+                          ? "visibility"
+                          : editingCargo
+                            ? "edit"
+                            : "add_box"}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">
+                        {viewOnly
+                          ? "Kargo Görüntüle"
+                          : editingCargo
+                            ? "Kargo Düzenle"
+                            : "Yeni Kargo"}
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        {viewOnly
+                          ? "Kargo detaylarını görüntüleyin"
+                          : editingCargo
+                            ? "Kargo bilgilerini güncelleyin"
+                            : "Yeni kargo kaydı oluşturun"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCloseDialog}
+                    className="h-8 w-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                  >
+                    <span className="material-symbols-rounded">close</span>
+                  </button>
                 </div>
-              )}
 
-              {/* User Selection */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Kullanıcı (Opsiyonel)
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full pl-4 pr-10 py-3 rounded-xl glass-input appearance-none cursor-pointer"
-                    value={formData.userId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, userId: e.target.value })
-                    }
-                  >
-                    <option value="" className="bg-slate-800">
-                      Misafir
-                    </option>
-                    {((users as User[]) || []).map((u) => (
-                      <option key={u.id} value={u.id} className="bg-slate-800">
-                        {u.fullName} ({u.email})
-                      </option>
-                    ))}
-                  </select>
-                  <svg
-                    className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 text-slate-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
+                {/* Modal Body */}
+                <div className="p-6 space-y-4">
+                  {/* Error Alert */}
+                  {(createMutation.isError || updateMutation.isError) && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+                      <span className="material-symbols-rounded">error</span>
+                      <span className="text-sm">
+                        {(createMutation.error as any)?.response?.data
+                          ?.message ||
+                          (updateMutation.error as any)?.response?.data
+                            ?.message ||
+                          "İşlem sırasında hata oluştu"}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* User Selection */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                      Kullanıcı (Opsiyonel)
+                    </label>
+                    <div className="relative">
+                      <select
+                        className="w-full pl-4 pr-10 py-3 rounded-xl glass-input appearance-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        value={formData.userId}
+                        onChange={(e) =>
+                          setFormData({ ...formData, userId: e.target.value })
+                        }
+                        disabled={viewOnly}
+                      >
+                        <option value="" className="bg-slate-800">
+                          Misafir
+                        </option>
+                        {((users as User[]) || []).map((u) => (
+                          <option
+                            key={u.id}
+                            value={u.id}
+                            className="bg-slate-800"
+                          >
+                            {u.fullName} ({u.email})
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 text-slate-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Station Selection */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                      Teslim Noktası <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        className="w-full pl-4 pr-10 py-3 rounded-xl glass-input appearance-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        value={formData.originStationId}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            originStationId: e.target.value,
+                          })
+                        }
+                        required
+                        disabled={viewOnly}
+                      >
+                        <option value="" className="bg-slate-800">
+                          Seçiniz...
+                        </option>
+                        {nonHubStations.map((s) => (
+                          <option
+                            key={s.id}
+                            value={s.id}
+                            className="bg-slate-800"
+                          >
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 text-slate-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Weight Input */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                      Ağırlık (kg) <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        className="w-full pl-10 pr-4 py-3 rounded-xl glass-input disabled:opacity-60 disabled:cursor-not-allowed"
+                        placeholder="0.0"
+                        value={formData.weightKg}
+                        onChange={(e) =>
+                          setFormData({ ...formData, weightKg: e.target.value })
+                        }
+                        min="0.1"
+                        step="0.1"
+                        required
+                        disabled={viewOnly}
+                      />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-rounded">
+                        scale
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Date Input */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                      Planlanan Tarih
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        className="w-full pl-10 pr-4 py-3 rounded-xl glass-input [&::-webkit-calendar-picker-indicator]:invert-[0.6] disabled:opacity-60 disabled:cursor-not-allowed"
+                        value={formData.scheduledDate}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            scheduledDate: e.target.value,
+                          })
+                        }
+                        disabled={viewOnly}
+                      />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-rounded">
+                        calendar_today
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Description Input */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                      Açıklama
+                    </label>
+                    <textarea
+                      className="w-full px-4 py-3 rounded-xl glass-input resize-none disabled:opacity-60 disabled:cursor-not-allowed"
+                      placeholder="Kargo açıklaması..."
+                      rows={3}
+                      value={formData.description}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
+                      }
+                      disabled={viewOnly}
                     />
-                  </svg>
+                  </div>
                 </div>
-              </div>
 
-              {/* Station Selection */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Teslim Noktası <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full pl-4 pr-10 py-3 rounded-xl glass-input appearance-none cursor-pointer"
-                    value={formData.originStationId}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        originStationId: e.target.value,
-                      })
-                    }
-                    required
+                {/* Modal Footer */}
+                <div className="flex items-center justify-end gap-3 p-6 border-t border-white/10">
+                  <button
+                    onClick={handleCloseDialog}
+                    className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors"
                   >
-                    <option value="" className="bg-slate-800">
-                      Seçiniz...
-                    </option>
-                    {nonHubStations.map((s) => (
-                      <option key={s.id} value={s.id} className="bg-slate-800">
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  <svg
-                    className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 text-slate-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                    İptal
+                  </button>
+                  {!viewOnly && (
+                    <button
+                      onClick={handleSubmit}
+                      disabled={
+                        createMutation.isPending ||
+                        updateMutation.isPending ||
+                        !formData.originStationId ||
+                        !formData.weightKg
+                      }
+                      className="btn-primary-glow px-6 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {createMutation.isPending || updateMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          <span>İşleniyor...</span>
+                        </>
+                      ) : editingCargo ? (
+                        <>
+                          <span className="material-symbols-rounded text-[18px]">
+                            check
+                          </span>
+                          <span>Güncelle</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-rounded text-[18px]">
+                            add
+                          </span>
+                          <span>Oluştur</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Weight Input */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Ağırlık (kg) <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl glass-input"
-                    placeholder="0.0"
-                    value={formData.weightKg}
-                    onChange={(e) =>
-                      setFormData({ ...formData, weightKg: e.target.value })
-                    }
-                    min="0.1"
-                    step="0.1"
-                    required
-                  />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-rounded">
-                    scale
-                  </span>
-                </div>
-              </div>
-
-              {/* Date Input */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Planlanan Tarih
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl glass-input [&::-webkit-calendar-picker-indicator]:invert-[0.6]"
-                    value={formData.scheduledDate}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        scheduledDate: e.target.value,
-                      })
-                    }
-                  />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-rounded">
-                    calendar_today
-                  </span>
-                </div>
-              </div>
-
-              {/* Description Input */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-                  Açıklama
-                </label>
-                <textarea
-                  className="w-full px-4 py-3 rounded-xl glass-input resize-none"
-                  placeholder="Kargo açıklaması..."
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-white/10">
-              <button
-                onClick={handleCloseDialog}
-                className="px-5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:bg-white/5 transition-colors"
-              >
-                İptal
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={
-                  createMutation.isPending ||
-                  updateMutation.isPending ||
-                  !formData.originStationId ||
-                  !formData.weightKg
-                }
-                className="btn-primary-glow px-6 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {createMutation.isPending || updateMutation.isPending ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>İşleniyor...</span>
-                  </>
-                ) : editingCargo ? (
-                  <>
-                    <span className="material-symbols-rounded text-[18px]">
-                      check
-                    </span>
-                    <span>Güncelle</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-rounded text-[18px]">
-                      add
-                    </span>
-                    <span>Oluştur</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

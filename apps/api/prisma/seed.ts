@@ -46,6 +46,11 @@ async function main() {
       paramValue: 200,
       description: "500kg kiralık araç maliyeti",
     },
+    {
+      paramKey: "rental_capacity_kg",
+      paramValue: 500,
+      description: "Kiral?k ara? kapasitesi (kg)",
+    },
   ];
 
   for (const p of systemParameters) {

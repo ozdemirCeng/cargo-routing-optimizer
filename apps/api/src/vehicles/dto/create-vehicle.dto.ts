@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, IsBoolean } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateVehicleDto {
@@ -23,4 +23,9 @@ export class CreateVehicleDto {
   @IsOptional()
   @IsNumber()
   rentalCost?: number;
+
+  @ApiProperty({ required: false, example: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

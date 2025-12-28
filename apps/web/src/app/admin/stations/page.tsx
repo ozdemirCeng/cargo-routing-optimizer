@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { stationsApi } from "@/lib/api";
 import dynamic from "next/dynamic";
@@ -30,6 +31,7 @@ interface Station {
 
 export default function StationsPage() {
   const queryClient = useQueryClient();
+  const [mounted, setMounted] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -49,8 +51,23 @@ export default function StationsPage() {
     error,
   } = useQuery({
     queryKey: ["stations"],
-    queryFn: () => stationsApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      stationsApi
+        .getAll()
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
+
+  const stationsList = Array.isArray(stations)
+    ? stations
+    : Array.isArray((stations as any)?.data)
+      ? (stations as any).data
+      : [];
 
   // Create station mutation
   const createMutation = useMutation({
@@ -147,7 +164,7 @@ export default function StationsPage() {
     }
   };
 
-  const filteredStations = stations.filter(
+  const filteredStations = stationsList.filter(
     (station: Station) =>
       station.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (station.code &&
@@ -166,6 +183,10 @@ export default function StationsPage() {
     if (diffDays < 7) return `${diffDays} gün önce`;
     return date.toLocaleDateString("tr-TR");
   };
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <div className="relative h-full">
@@ -425,145 +446,148 @@ export default function StationsPage() {
       )}
 
       {/* Add/Edit Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={handleCloseModal}
-          ></div>
-          <div className="relative glass-dark rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white">
-                {editMode ? "İstasyon Düzenle" : "Yeni İstasyon Ekle"}
-              </h2>
-              <button
+      {showAddModal && mounted
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                 onClick={handleCloseModal}
-                className="text-slate-400 hover:text-white transition-colors"
-              >
-                <span className="material-symbols-rounded">close</span>
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-1">
-                  İstasyon Adı *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400"
-                  placeholder="Gebze Dağıtım Merkezi"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Kod
-                </label>
-                <input
-                  type="text"
-                  value={formData.code}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      code: e.target.value.toUpperCase(),
-                    })
-                  }
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400 font-mono"
-                  placeholder="GBZ"
-                  maxLength={10}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-1">
-                    Enlem (Latitude) *
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    value={formData.latitude}
-                    onChange={(e) =>
-                      setFormData({ ...formData, latitude: e.target.value })
-                    }
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400"
-                    placeholder="40.8027"
-                  />
+              ></div>
+              <div className="relative glass-dark rounded-2xl shadow-2xl w-full max-w-md p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-white">
+                    {editMode ? "İstasyon Düzenle" : "Yeni İstasyon Ekle"}
+                  </h2>
+                  <button
+                    onClick={handleCloseModal}
+                    className="text-slate-400 hover:text-white transition-colors"
+                  >
+                    <span className="material-symbols-rounded">close</span>
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-1">
-                    Boylam (Longitude) *
-                  </label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    value={formData.longitude}
-                    onChange={(e) =>
-                      setFormData({ ...formData, longitude: e.target.value })
-                    }
-                    className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400"
-                    placeholder="29.4306"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-1">
-                  Adres
-                </label>
-                <textarea
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                  rows={2}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400 resize-none"
-                  placeholder="Gebze, Kocaeli"
-                />
-              </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-200 mb-1">
+                      İstasyon Adı *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400"
+                      placeholder="Gebze Dağıtım Merkezi"
+                    />
+                  </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="flex-1 px-4 py-3 rounded-xl border border-slate-600 text-slate-200 hover:bg-slate-700 font-medium transition-colors"
-                >
-                  İptal
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    createMutation.isPending || updateMutation.isPending
-                  }
-                  className="flex-1 px-4 py-3 rounded-xl bg-primary hover:bg-blue-600 text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {createMutation.isPending || updateMutation.isPending ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                      Kaydediliyor...
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-rounded text-lg">
-                        save
-                      </span>
-                      {editMode ? "Güncelle" : "Kaydet"}
-                    </>
-                  )}
-                </button>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-200 mb-1">
+                      Kod
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.code}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          code: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400 font-mono"
+                      placeholder="GBZ"
+                      maxLength={10}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-200 mb-1">
+                        Enlem (Latitude) *
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        required
+                        value={formData.latitude}
+                        onChange={(e) =>
+                          setFormData({ ...formData, latitude: e.target.value })
+                        }
+                        className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400"
+                        placeholder="40.8027"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-200 mb-1">
+                        Boylam (Longitude) *
+                      </label>
+                      <input
+                        type="number"
+                        step="any"
+                        required
+                        value={formData.longitude}
+                        onChange={(e) =>
+                          setFormData({ ...formData, longitude: e.target.value })
+                        }
+                        className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400"
+                        placeholder="29.4306"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-200 mb-1">
+                      Adres
+                    </label>
+                    <textarea
+                      value={formData.address}
+                      onChange={(e) =>
+                        setFormData({ ...formData, address: e.target.value })
+                      }
+                      rows={2}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-800/80 border border-slate-600 focus:ring-2 focus:ring-primary focus:border-transparent text-white placeholder-slate-400 resize-none"
+                      placeholder="Gebze, Kocaeli"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="flex-1 px-4 py-3 rounded-xl border border-slate-600 text-slate-200 hover:bg-slate-700 font-medium transition-colors"
+                    >
+                      İptal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={
+                        createMutation.isPending || updateMutation.isPending
+                      }
+                      className="flex-1 px-4 py-3 rounded-xl bg-primary hover:bg-blue-600 text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {createMutation.isPending || updateMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          Kaydediliyor...
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-rounded text-lg">
+                            save
+                          </span>
+                          {editMode ? "Güncelle" : "Kaydet"}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

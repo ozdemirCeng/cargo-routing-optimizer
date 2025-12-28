@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { vehiclesApi } from "@/lib/api";
 
@@ -23,6 +24,7 @@ interface Vehicle {
 
 export default function VehiclesPage() {
   const queryClient = useQueryClient();
+  const [mounted, setMounted] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,8 +40,21 @@ export default function VehiclesPage() {
 
   const { data: vehicles, isLoading } = useQuery({
     queryKey: ["vehicles"],
-    queryFn: () => vehiclesApi.getAll().then((r) => r.data),
+    queryFn: () =>
+      vehiclesApi
+        .getAll()
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const createMutation = useMutation({
     mutationFn: vehiclesApi.create,
@@ -517,181 +532,184 @@ export default function VehiclesPage() {
       </div>
 
       {/* Add/Edit Dialog */}
-      {dialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-            onClick={handleCloseDialog}
-          ></div>
-          <div className="relative w-full max-w-xl glass-panel rounded-2xl overflow-hidden shadow-2xl animate-fade-in border border-white/10">
-            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-slate-900/40">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
-                  <span className="material-symbols-rounded text-[20px]">
-                    directions_car
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold text-white">
-                  {editingVehicle ? "Araç Düzenle" : "Yeni Araç Ekle"}
-                </h3>
-              </div>
-              <button
+      {dialogOpen && mounted
+        ? createPortal(
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
                 onClick={handleCloseDialog}
-                className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
-              >
-                <span className="material-symbols-rounded text-[20px]">
-                  close
-                </span>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5 bg-slate-900/40">
-              {/* Error Message */}
-              {error && (
-                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30">
-                  <div className="flex items-center gap-3 text-red-400">
-                    <span className="material-symbols-rounded">error</span>
-                    <span>{error}</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                    Plaka *
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2.5 rounded-lg text-sm glass-input font-mono placeholder:text-slate-600 focus:text-white uppercase"
-                    placeholder="Örn: 41 ABC 123"
-                    value={formData.plateNumber}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        plateNumber: e.target.value.toUpperCase(),
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                    Kapasite (kg) *
-                  </label>
-                  <input
-                    type="number"
-                    className="w-full px-4 py-2.5 rounded-lg text-sm glass-input placeholder:text-slate-600 focus:text-white"
-                    placeholder="1000"
-                    value={formData.capacityKg}
-                    onChange={(e) =>
-                      setFormData({ ...formData, capacityKg: e.target.value })
-                    }
-                    min={100}
-                    step={50}
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    Önerilen: 500, 750, 1000 kg
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                  Araç Adı
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-4 py-2.5 rounded-lg text-sm glass-input placeholder:text-slate-600 focus:text-white"
-                  placeholder="Örn: Ford Transit 1000kg"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                />
-              </div>
-
-              {editingVehicle && (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                    Durum
-                  </label>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, isActive: true })
-                      }
-                      className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        formData.isActive
-                          ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"
-                          : "glass-input text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      <span className="flex items-center justify-center gap-2">
-                        <span className="material-symbols-rounded text-[18px]">
-                          check_circle
-                        </span>
-                        Aktif
+              ></div>
+              <div className="relative w-full max-w-xl glass-panel rounded-2xl overflow-hidden shadow-2xl animate-fade-in border border-white/10">
+                <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-slate-900/40">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                      <span className="material-symbols-rounded text-[20px]">
+                        directions_car
                       </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, isActive: false })
-                      }
-                      className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        !formData.isActive
-                          ? "bg-orange-500/20 border border-orange-500/30 text-orange-400"
-                          : "glass-input text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      <span className="flex items-center justify-center gap-2">
-                        <span className="material-symbols-rounded text-[18px]">
-                          cancel
-                        </span>
-                        Pasif
-                      </span>
-                    </button>
+                    </div>
+                    <h3 className="text-lg font-bold text-white">
+                      {editingVehicle ? "Araç Düzenle" : "Yeni Araç Ekle"}
+                    </h3>
                   </div>
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 border-t border-white/10 bg-slate-900/60 flex items-center justify-end gap-3">
-              <button
-                onClick={handleCloseDialog}
-                className="px-5 py-2.5 rounded-lg text-slate-400 hover:text-white text-sm font-medium hover:bg-white/5 transition-colors"
-              >
-                İptal
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={
-                  createMutation.isPending ||
-                  updateMutation.isPending ||
-                  !formData.plateNumber ||
-                  !formData.capacityKg
-                }
-                className="px-6 py-2.5 rounded-lg text-white text-sm font-bold flex items-center gap-2 btn-primary-glow disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {createMutation.isPending || updateMutation.isPending ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>İşleniyor...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-rounded text-[18px]">
-                      check
+                  <button
+                    onClick={handleCloseDialog}
+                    className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
+                  >
+                    <span className="material-symbols-rounded text-[20px]">
+                      close
                     </span>
-                    <span>{editingVehicle ? "Güncelle" : "Oluştur"}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-5 bg-slate-900/40">
+                  {/* Error Message */}
+                  {error && (
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+                      <div className="flex items-center gap-3 text-red-400">
+                        <span className="material-symbols-rounded">error</span>
+                        <span>{error}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                        Plaka *
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-2.5 rounded-lg text-sm glass-input font-mono placeholder:text-slate-600 focus:text-white uppercase"
+                        placeholder="Örn: 41 ABC 123"
+                        value={formData.plateNumber}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            plateNumber: e.target.value.toUpperCase(),
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                        Kapasite (kg) *
+                      </label>
+                      <input
+                        type="number"
+                        className="w-full px-4 py-2.5 rounded-lg text-sm glass-input placeholder:text-slate-600 focus:text-white"
+                        placeholder="1000"
+                        value={formData.capacityKg}
+                        onChange={(e) =>
+                          setFormData({ ...formData, capacityKg: e.target.value })
+                        }
+                        min={100}
+                        step={50}
+                      />
+                      <p className="text-xs text-slate-500 mt-1">
+                        Önerilen: 500, 750, 1000 kg
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                      Araç Adı
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-2.5 rounded-lg text-sm glass-input placeholder:text-slate-600 focus:text-white"
+                      placeholder="Örn: Ford Transit 1000kg"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  {editingVehicle && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                        Durum
+                      </label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, isActive: true })
+                          }
+                          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                            formData.isActive
+                              ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-400"
+                              : "glass-input text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="material-symbols-rounded text-[18px]">
+                              check_circle
+                            </span>
+                            Aktif
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, isActive: false })
+                          }
+                          className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                            !formData.isActive
+                              ? "bg-orange-500/20 border border-orange-500/30 text-orange-400"
+                              : "glass-input text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="material-symbols-rounded text-[18px]">
+                              cancel
+                            </span>
+                            Pasif
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="px-6 py-4 border-t border-white/10 bg-slate-900/60 flex items-center justify-end gap-3">
+                  <button
+                    onClick={handleCloseDialog}
+                    className="px-5 py-2.5 rounded-lg text-slate-400 hover:text-white text-sm font-medium hover:bg-white/5 transition-colors"
+                  >
+                    İptal
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={
+                      createMutation.isPending ||
+                      updateMutation.isPending ||
+                      !formData.plateNumber ||
+                      !formData.capacityKg
+                    }
+                    className="px-6 py-2.5 rounded-lg text-white text-sm font-bold flex items-center gap-2 btn-primary-glow disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {createMutation.isPending || updateMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>İşleniyor...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-rounded text-[18px]">
+                          check
+                        </span>
+                        <span>{editingVehicle ? "Güncelle" : "Oluştur"}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       {/* Custom Styles */}
       <style jsx>{`
