@@ -129,7 +129,13 @@ export default function PlansPage() {
     queryFn: () =>
       plansApi
         .getAll()
-        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
 
   const { data: stationSummary } = useQuery({
@@ -137,7 +143,13 @@ export default function PlansPage() {
     queryFn: () =>
       stationsApi
         .getSummary(selectedDate)
-        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
 
   const { data: vehicles } = useQuery({
@@ -145,7 +157,13 @@ export default function PlansPage() {
     queryFn: () =>
       vehiclesApi
         .getAll()
-        .then((r) => (Array.isArray(r.data) ? r.data : Array.isArray((r.data as any)?.data) ? (r.data as any).data : [])),
+        .then((r) =>
+          Array.isArray(r.data)
+            ? r.data
+            : Array.isArray((r.data as any)?.data)
+              ? (r.data as any).data
+              : []
+        ),
   });
 
   // Mutations
@@ -272,7 +290,8 @@ export default function PlansPage() {
         capacityKg,
         totalDistanceKm: Number(route.totalDistanceKm) || 0,
         totalDurationMinutes:
-          route.totalDurationMin === undefined || route.totalDurationMin === null
+          route.totalDurationMin === undefined ||
+          route.totalDurationMin === null
             ? undefined
             : Number(route.totalDurationMin),
         totalCost: Number(route.totalCost) || 0,
@@ -288,11 +307,15 @@ export default function PlansPage() {
       : [];
 
     const totalCargos =
-      nonHub.reduce((sum: number, s: any) => sum + (Number(s.cargoCount) || 0), 0) ||
-      0;
+      nonHub.reduce(
+        (sum: number, s: any) => sum + (Number(s.cargoCount) || 0),
+        0
+      ) || 0;
     const totalWeight =
-      nonHub.reduce((sum: number, s: any) => sum + (Number(s.totalWeightKg) || 0), 0) ||
-      0;
+      nonHub.reduce(
+        (sum: number, s: any) => sum + (Number(s.totalWeightKg) || 0),
+        0
+      ) || 0;
     const activeStations =
       nonHub.filter((s: any) => (Number(s.cargoCount) || 0) > 0).length || 0;
 
@@ -504,9 +527,9 @@ export default function PlansPage() {
         </div>
       </header>
 
-      {/* Stats Panel (Top Right) */}
+      {/* Stats Panel (Right) */}
       {selectedPlan && (
-        <div className="absolute top-6 right-6 z-30 w-80 bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-2xl">
+        <div className="absolute top-24 right-6 z-30 w-80 bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-2xl">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold">Plan Özeti</h3>
             <button

@@ -119,13 +119,21 @@ export default function RouteMap({
   useEffect(() => {
     if (!map.current || !loaded) return;
 
-    // Eski layerları temizle
+    // Eski layerları temizle - önce tüm layer'ları sil, sonra source'ları
     for (let i = 0; i < 10; i++) {
-      const ids = [`route-line-${i}`, `route-outline-${i}`];
-      ids.forEach((id) => {
-        if (map.current?.getLayer(id)) map.current.removeLayer(id);
-        if (map.current?.getSource(id)) map.current.removeSource(id);
-      });
+      // Önce layer'ları sil (sıra önemli: outline source'u kullanıyor)
+      if (map.current?.getLayer(`route-outline-${i}`)) {
+        map.current.removeLayer(`route-outline-${i}`);
+      }
+      if (map.current?.getLayer(`route-line-${i}`)) {
+        map.current.removeLayer(`route-line-${i}`);
+      }
+    }
+    // Sonra source'ları sil
+    for (let i = 0; i < 10; i++) {
+      if (map.current?.getSource(`route-line-${i}`)) {
+        map.current.removeSource(`route-line-${i}`);
+      }
     }
 
     routes.forEach((route, idx) => {
@@ -152,12 +160,13 @@ export default function RouteMap({
       const isSelected = selectedRouteId === route.id;
       const hasSelection = !!selectedRouteId;
       const opacity = hasSelection && !isSelected ? 0.25 : 1;
-      
+
       // Her rota için farklı offset (üst üste binmeyi önle)
-      const offset = routes.length > 1 ? (idx - (routes.length - 1) / 2) * 6 : 0;
+      const offset =
+        routes.length > 1 ? (idx - (routes.length - 1) / 2) * 6 : 0;
 
       const sourceId = `route-line-${idx}`;
-      
+
       map.current?.addSource(sourceId, {
         type: "geojson",
         data: {
@@ -207,7 +216,15 @@ export default function RouteMap({
 
     // Durak bilgilerini topla: koordinat -> [{routeIdx, order}]
     type StopData = { routeIdx: number; order: number; color: string };
-    const stopMap = new Map<string, { coords: [number, number]; data: StopData[]; name: string; isHub: boolean }>();
+    const stopMap = new Map<
+      string,
+      {
+        coords: [number, number];
+        data: StopData[];
+        name: string;
+        isHub: boolean;
+      }
+    >();
 
     routes.forEach((route, routeIdx) => {
       if (!route.stops) return;
@@ -215,7 +232,7 @@ export default function RouteMap({
 
       route.stops.forEach((stop) => {
         const key = `${stop.latitude.toFixed(5)},${stop.longitude.toFixed(5)}`;
-        
+
         if (!stopMap.has(key)) {
           // İsim bul
           let name = stop.label || "";
@@ -223,7 +240,7 @@ export default function RouteMap({
             const st = stations.find((s) => s.id === stop.stationId);
             name = st?.name || "";
           }
-          
+
           stopMap.set(key, {
             coords: [stop.longitude, stop.latitude],
             data: [],
@@ -285,14 +302,15 @@ export default function RouteMap({
       } else {
         // Durak numaraları - her araç için bir numara
         const hasSelection = !!selectedRouteId;
-        
+
         data.sort((a, b) => a.routeIdx - b.routeIdx);
 
-        const numbersHtml = data.map((d) => {
-          const isSelected = selectedRouteId === routes[d.routeIdx]?.id;
-          const opacity = hasSelection && !isSelected ? 0.3 : 1;
-          
-          return `
+        const numbersHtml = data
+          .map((d) => {
+            const isSelected = selectedRouteId === routes[d.routeIdx]?.id;
+            const opacity = hasSelection && !isSelected ? 0.3 : 1;
+
+            return `
             <div style="
               width: 32px;
               height: 32px;
@@ -309,7 +327,8 @@ export default function RouteMap({
               opacity: ${opacity};
             ">${d.order}</div>
           `;
-        }).join("");
+          })
+          .join("");
 
         el.innerHTML = numbersHtml;
       }
@@ -338,7 +357,8 @@ export default function RouteMap({
     if (!hoveredStation || !map.current) return;
 
     const markerEl = markersRef.current.find(
-      (m) => (m.getElement() as HTMLElement).dataset?.stationKey === hoveredStation
+      (m) =>
+        (m.getElement() as HTMLElement).dataset?.stationKey === hoveredStation
     );
     if (!markerEl) return;
 
@@ -352,7 +372,9 @@ export default function RouteMap({
       className: "station-tooltip",
     })
       .setLngLat(markerEl.getLngLat())
-      .setHTML(`<div style="background: #1a1a2e; color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">${name}</div>`)
+      .setHTML(
+        `<div style="background: #1a1a2e; color: white; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">${name}</div>`
+      )
       .addTo(map.current);
 
     return () => {
@@ -363,44 +385,6 @@ export default function RouteMap({
   return (
     <div className="absolute inset-0 z-0">
       <div ref={mapContainer} className="w-full h-full" />
-
-      {/* Basit Lejant - Sadece araç renkleri */}
-      {routes.length > 0 && (
-        <div className="absolute top-4 left-4 z-40 bg-white/95 backdrop-blur rounded-lg shadow-lg p-3 min-w-[160px]">
-          <div className="text-xs font-bold text-slate-600 mb-2">Araçlar</div>
-          <div className="space-y-1.5">
-            {routes.map((route, idx) => {
-              const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
-              const isSelected = selectedRouteId === route.id;
-              const stopCount = route.stops?.filter((s) => !s.isHub).length || 0;
-
-              return (
-                <div
-                  key={route.id}
-                  onClick={() => onRouteHover?.(isSelected ? null : route.id)}
-                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all ${
-                    isSelected ? "bg-slate-100" : "hover:bg-slate-50"
-                  }`}
-                >
-                  <div
-                    style={{ background: color }}
-                    className="w-4 h-4 rounded-full border-2 border-white shadow"
-                  />
-                  <div className="flex-1 text-sm font-medium text-slate-700">
-                    {route.vehicleName}
-                  </div>
-                  <div
-                    style={{ background: color }}
-                    className="text-white text-xs font-bold px-1.5 py-0.5 rounded"
-                  >
-                    {stopCount}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       <style jsx global>{`
         .station-tooltip .maplibregl-popup-content {
