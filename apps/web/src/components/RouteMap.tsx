@@ -119,20 +119,27 @@ export default function RouteMap({
   useEffect(() => {
     if (!map.current || !loaded) return;
 
-    // Eski layerları temizle - önce tüm layer'ları sil, sonra source'ları
-    for (let i = 0; i < 10; i++) {
-      // Önce layer'ları sil (sıra önemli: outline source'u kullanıyor)
-      if (map.current?.getLayer(`route-outline-${i}`)) {
-        map.current.removeLayer(`route-outline-${i}`);
-      }
-      if (map.current?.getLayer(`route-line-${i}`)) {
-        map.current.removeLayer(`route-line-${i}`);
+    // Eski layer/source'ları temizle - tüm route layer'larını kapsa
+    const style = map.current.getStyle();
+    if (style?.layers) {
+      for (const layer of style.layers) {
+        if (
+          layer.id.startsWith("route-outline-") ||
+          layer.id.startsWith("route-line-")
+        ) {
+          if (map.current.getLayer(layer.id)) {
+            map.current.removeLayer(layer.id);
+          }
+        }
       }
     }
-    // Sonra source'ları sil
-    for (let i = 0; i < 10; i++) {
-      if (map.current?.getSource(`route-line-${i}`)) {
-        map.current.removeSource(`route-line-${i}`);
+    if (style?.sources) {
+      for (const sourceId of Object.keys(style.sources)) {
+        if (sourceId.startsWith("route-line-")) {
+          if (map.current.getSource(sourceId)) {
+            map.current.removeSource(sourceId);
+          }
+        }
       }
     }
 
