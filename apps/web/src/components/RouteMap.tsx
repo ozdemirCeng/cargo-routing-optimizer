@@ -115,11 +115,16 @@ export default function RouteMap({
     };
   }, []);
 
-  // Rota çizgileri
+  // Track added route indices for cleanup
+  const addedRouteIndicesRef = useRef<number[]>([]);
+  // Map route.id to layer index for reordering
+  const routeIdToIndexRef = useRef<Map<string, number>>(new Map());
+
+  // Rota çizgileri - sadece routes değiştiğinde yeniden çiz
   useEffect(() => {
     if (!map.current || !loaded) return;
 
-    // Eski layer/source'ları temizle - tüm route layer'larını kapsa
+    // Clear existing route layers/sources (covers all route layers)
     const style = map.current.getStyle();
     if (style?.layers) {
       for (const layer of style.layers) {
@@ -143,6 +148,10 @@ export default function RouteMap({
       }
     }
 
+    // Track current indices
+    addedRouteIndicesRef.current = [];
+    routeIdToIndexRef.current.clear();
+
     routes.forEach((route, idx) => {
       if (!route.polyline) return;
 
@@ -165,11 +174,12 @@ export default function RouteMap({
 
       // Use color from route object (passed from parent)
       const color = route.color;
-      const isSelected = selectedRouteId === route.id;
-      const hasSelection = !!selectedRouteId;
-      const opacity = hasSelection && !isSelected ? 0.25 : 1;
 
       const sourceId = `route-line-${idx}`;
+
+      // Track this index for cleanup and reordering
+      addedRouteIndicesRef.current.push(idx);
+      routeIdToIndexRef.current.set(route.id, idx);
 
       map.current?.addSource(sourceId, {
         type: "geojson",
@@ -180,15 +190,15 @@ export default function RouteMap({
         },
       });
 
-      // Dış çerçeve (koyu)
+      // Dış çerçeve (koyu) - başlangıçta normal opacity
       map.current?.addLayer({
         id: `route-outline-${idx}`,
         type: "line",
         source: sourceId,
         paint: {
           "line-color": "#1a1a2e",
-          "line-width": isSelected ? 10 : 7,
-          "line-opacity": opacity * 0.8,
+          "line-width": 7,
+          "line-opacity": 0.8,
         },
         layout: { "line-cap": "round", "line-join": "round" },
       });
@@ -200,13 +210,68 @@ export default function RouteMap({
         source: sourceId,
         paint: {
           "line-color": color,
-          "line-width": isSelected ? 6 : 4,
-          "line-opacity": opacity,
+          "line-width": 4,
+          "line-opacity": 1,
         },
         layout: { "line-cap": "round", "line-join": "round" },
       });
     });
-  }, [routes, loaded, selectedRouteId]);
+  }, [routes, loaded]);
+
+  // Seçili rota değişince: paint özelliklerini güncelle ve layer'ı en üste taşı
+  useEffect(() => {
+    if (!map.current || !loaded) return;
+
+    const hasSelection = !!selectedRouteId;
+    const selectedIdx = selectedRouteId
+      ? routeIdToIndexRef.current.get(selectedRouteId)
+      : undefined;
+
+    // Tüm rotaların opacity ve width'ini güncelle
+    addedRouteIndicesRef.current.forEach((idx) => {
+      const isSelected = idx === selectedIdx;
+      const opacity = hasSelection && !isSelected ? 0.25 : 1;
+
+      // Outline layer
+      if (map.current?.getLayer(`route-outline-${idx}`)) {
+        map.current.setPaintProperty(
+          `route-outline-${idx}`,
+          "line-opacity",
+          opacity * 0.8
+        );
+        map.current.setPaintProperty(
+          `route-outline-${idx}`,
+          "line-width",
+          isSelected ? 10 : 7
+        );
+      }
+
+      // Main line layer
+      if (map.current?.getLayer(`route-line-${idx}`)) {
+        map.current.setPaintProperty(
+          `route-line-${idx}`,
+          "line-opacity",
+          opacity
+        );
+        map.current.setPaintProperty(
+          `route-line-${idx}`,
+          "line-width",
+          isSelected ? 6 : 4
+        );
+      }
+    });
+
+    // Seçili rotayı en üste taşı (moveLayer)
+    if (selectedIdx !== undefined) {
+      // Önce outline'ı en üste, sonra line'ı (line en üstte olmalı)
+      if (map.current?.getLayer(`route-outline-${selectedIdx}`)) {
+        map.current.moveLayer(`route-outline-${selectedIdx}`);
+      }
+      if (map.current?.getLayer(`route-line-${selectedIdx}`)) {
+        map.current.moveLayer(`route-line-${selectedIdx}`);
+      }
+    }
+  }, [selectedRouteId, loaded, routes]);
 
   // Durak markerları
   useEffect(() => {
@@ -303,37 +368,102 @@ export default function RouteMap({
           "></div>
         `;
       } else {
-        // Durak numaraları - her araç için bir numara
+        // Durak numaraları
         const hasSelection = !!selectedRouteId;
 
-        data.sort((a, b) => a.routeIdx - b.routeIdx);
+        // Seçili rotayı bul
+        const selectedData = data.find(
+          (d) => selectedRouteId === routes[d.routeIdx]?.id
+        );
 
-        const numbersHtml = data
-          .map((d) => {
-            const isSelected = selectedRouteId === routes[d.routeIdx]?.id;
-            const opacity = hasSelection && !isSelected ? 0.3 : 1;
-
-            return `
+        if (hasSelection && selectedData) {
+          // Seçili rota varsa sadece onu göster
+          el.innerHTML = `
             <div style="
-              width: 32px;
-              height: 32px;
-              background: ${d.color};
+              width: 36px;
+              height: 36px;
+              background: ${selectedData.color};
               border: 3px solid white;
               border-radius: 50%;
               display: flex;
               align-items: center;
               justify-content: center;
-              font-size: 14px;
+              font-size: 16px;
               font-weight: 900;
               color: white;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-              opacity: ${opacity};
-            ">${d.order}</div>
+              box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            ">${selectedData.order}</div>
           `;
-          })
-          .join("");
+        } else if (!hasSelection) {
+          // Seçim yoksa: tek bir özet marker göster
+          // En düşük sıra numaralı rotanın rengini kullan
+          data.sort((a, b) => a.order - b.order);
+          const primary = data[0];
+          const extraCount = data.length - 1;
 
-        el.innerHTML = numbersHtml;
+          el.innerHTML = `
+            <div style="position: relative;">
+              <div style="
+                width: 32px;
+                height: 32px;
+                background: ${primary.color};
+                border: 3px solid white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                font-weight: 900;
+                color: white;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+              ">${primary.order}</div>
+              ${
+                extraCount > 0
+                  ? `
+                <div style="
+                  position: absolute;
+                  top: -6px;
+                  right: -6px;
+                  width: 18px;
+                  height: 18px;
+                  background: #1a1a2e;
+                  border: 2px solid white;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 10px;
+                  font-weight: 700;
+                  color: white;
+                ">+${extraCount}</div>
+              `
+                  : ""
+              }
+            </div>
+          `;
+        } else {
+          // Seçim var ama bu durakta seçili rota yok - soluk göster
+          data.sort((a, b) => a.order - b.order);
+          const primary = data[0];
+
+          el.innerHTML = `
+            <div style="
+              width: 24px;
+              height: 24px;
+              background: ${primary.color};
+              border: 2px solid white;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 11px;
+              font-weight: 700;
+              color: white;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+              opacity: 0.4;
+            ">${primary.order}</div>
+          `;
+        }
       }
 
       // Hover için tooltip
