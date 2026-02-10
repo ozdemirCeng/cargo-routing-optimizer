@@ -18,13 +18,13 @@ Bu proje, Kocaeli ili içindeki 12 ilçeye kargo dağıtımı yapan bir sistemi 
 
 ## 🏗️ Teknoloji Stack
 
-| Katman | Teknoloji |
-|--------|-----------|
-| **Web UI** | Next.js 14, React 18, MUI, MapLibre GL |
-| **API** | NestJS, Prisma, PostgreSQL |
-| **Optimizer** | Python, FastAPI, NumPy |
-| **Routing** | OSRM (Self-hosted) |
-| **Container** | Docker, Docker Compose |
+| Katman        | Teknoloji                              |
+| ------------- | -------------------------------------- |
+| **Web UI**    | Next.js 14, React 18, MUI, MapLibre GL |
+| **API**       | NestJS, Prisma, PostgreSQL             |
+| **Optimizer** | Python, FastAPI, NumPy                 |
+| **Routing**   | OSRM (Self-hosted)                     |
+| **Container** | Docker, Docker Compose                 |
 
 ## 🚀 Hızlı Başlangıç
 
@@ -54,7 +54,7 @@ docker compose logs -f
 ## 🚢 Production (Önerilen)
 
 Bu proje için en stabil ve hızlı yayın senaryosu: **tek bir VPS + Docker Compose + local PostgreSQL + Caddy reverse proxy**.
-Bu sayede Web ve API aynı domainde çalışır (client istekleri ` /api ` ile gider) ve CORS/latency problemleri minimuma iner.
+Bu sayede Web ve API aynı domainde çalışır (client istekleri `/api` ile gider) ve CORS/latency problemleri minimuma iner.
 
 ### Gereksinimler
 
@@ -64,7 +64,7 @@ Bu sayede Web ve API aynı domainde çalışır (client istekleri ` /api ` ile g
 
 ### Kurulum
 
-1) Sunucuda ortam değişkenlerini ayarla:
+1. Sunucuda ortam değişkenlerini ayarla:
 
 ```bash
 export DOMAIN=kargo.example.com
@@ -72,18 +72,18 @@ export ACME_EMAIL=you@example.com
 export POSTGRES_PASSWORD='strong_password_here'
 ```
 
-2) API secret’larını deploy ortamında ver:
+2. API secret’larını deploy ortamında ver:
 
 - `JWT_SECRET` zorunlu
 - `DATABASE_URL` / `DIRECT_URL` prod compose içinde local Postgres’e bağlanacak şekilde zaten set ediliyor
 
-3) Servisleri başlat:
+3. Servisleri başlat:
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-4) İlk kurulumda seed (opsiyonel):
+4. İlk kurulumda seed (opsiyonel):
 
 ```bash
 docker compose -f docker-compose.prod.yml run --rm api node prisma/seed.js
@@ -96,25 +96,26 @@ docker compose -f docker-compose.prod.yml run --rm api node prisma/seed.js
 - Swagger: `https://$DOMAIN/api/docs`
 
 OSRM için Türkiye verisini indirip OSRM datasını üretme adımları:
+
 - [docs/OSRM.md](docs/OSRM.md)
 
 ### Servis URL'leri
 
-| Servis | URL | Açıklama |
-|--------|-----|----------|
-| Web UI | http://localhost:3000 | Next.js Frontend |
-| API | http://localhost:3001/api | NestJS Backend (base path) |
-| API Docs | http://localhost:3001/api/docs | Swagger UI |
-| Optimizer | http://localhost:5000 | Python VRP Solver |
-| Health | http://localhost:3001/api/health | Liveness |
-| Ready | http://localhost:3001/api/health/ready | Readiness (DB) |
+| Servis    | URL                                    | Açıklama                   |
+| --------- | -------------------------------------- | -------------------------- |
+| Web UI    | http://localhost:3000                  | Next.js Frontend           |
+| API       | http://localhost:3001/api              | NestJS Backend (base path) |
+| API Docs  | http://localhost:3001/api/docs         | Swagger UI                 |
+| Optimizer | http://localhost:5000                  | Python VRP Solver          |
+| Health    | http://localhost:3001/api/health       | Liveness                   |
+| Ready     | http://localhost:3001/api/health/ready | Readiness (DB)             |
 
 ### Varsayılan Kullanıcılar
 
-| Email | Şifre | Rol |
-|-------|-------|-----|
+| Email             | Şifre    | Rol   |
+| ----------------- | -------- | ----- |
 | admin@kargo.local | admin123 | Admin |
-| user@kargo.local | user123 | User |
+| user@kargo.local  | user123  | User  |
 
 ## 📁 Proje Yapısı
 
@@ -156,24 +157,29 @@ kargo/
 Sistem 4 farklı senaryo ile test edilebilir:
 
 ### Senaryo 1: Az Kargo, Homojen Dağılım
+
 - 12 ilçeye eşit dağılımlı kargo
 - Toplam ~850 kg
 
 ### Senaryo 2: Çok Kargo, Heterojen Dağılım
+
 - Bazı ilçelerde yoğunluk fazla
 - Toplam ~3200 kg
 
 ### Senaryo 3: Yoğun Merkez, Uzak Hafif
+
 - Merkeze yakın ilçelerde yoğun kargo
 - Uzak ilçelerde az kargo
 
 ### Senaryo 4: Karma Senaryo
+
 - Rastgele dağılım
 - Gerçek dünya simülasyonu
 
 ## 🧮 VRP Algoritması
 
 ### Problem Tipi: CVRP
+
 - **C**apacitated **V**ehicle **R**outing **P**roblem
 - Araç kapasite kısıtı
 - Tüm rotalar hub'dan başlar ve hub'da biter
@@ -191,17 +197,20 @@ Toplam Maliyet = (Toplam Mesafe × Km Maliyeti) + (Araç Sayısı × Kiralama Ma
 ```
 
 Varsayılan değerler:
+
 - Km Maliyeti: 1 TL/km
 - Kiralama Maliyeti: 200 TL/araç
 
 ## 🗺️ Harita & Routing
 
 ### OSRM (Open Source Routing Machine)
+
 - Türkiye OSM verileri kullanılır
 - Gerçek yol mesafeleri ve polyline'lar
 - Self-hosted (Google/Yandex kullanılmaz!)
 
 ### MapLibre GL JS
+
 - Açık kaynak harita kütüphanesi
 - Rota görselleştirme
 - İstasyon işaretleme
@@ -224,6 +233,7 @@ distance_matrix → Mesafe önbelleği
 ## 🔐 RBAC (Rol Tabanlı Erişim Kontrolü)
 
 ### Admin Yetkileri
+
 - ✅ Tüm CRUD işlemleri
 - ✅ Plan oluşturma ve optimize etme
 - ✅ Tüm kullanıcıları görme
@@ -231,6 +241,7 @@ distance_matrix → Mesafe önbelleği
 - ✅ Sistem parametrelerini değiştirme
 
 ### User Yetkileri
+
 - ✅ Kendi kargolarını oluşturma
 - ✅ Kendi kargolarını takip etme
 - ✅ Kendi aracını haritada görme (varsa)
@@ -267,27 +278,32 @@ uvicorn main:app --reload --port 5000
 ## 📝 API Endpoints
 
 ### Kimlik Doğrulama
+
 - `POST /auth/login` - Giriş
 - `POST /auth/register` - Kayıt
 - `GET /auth/me` - Mevcut kullanıcı
 
 ### İstasyonlar
+
 - `GET /stations` - Tüm istasyonlar
 - `POST /stations` - Yeni istasyon (Admin)
 - `PATCH /stations/:id` - Güncelle (Admin)
 - `DELETE /stations/:id` - Sil (Admin)
 
 ### Kargolar
+
 - `GET /cargos` - Kargo listesi
 - `POST /cargos` - Yeni kargo
 - `GET /cargos/:id/route` - Kargo rotası
 
 ### Planlar
+
 - `POST /plans` - Plan oluştur (optimize)
 - `GET /plans/:id` - Plan detayı
 - `POST /plans/:id/execute` - Planı çalıştır
 
 ### Seferler
+
 - `GET /trips` - Sefer listesi
 - `PATCH /trips/:id/status` - Durum güncelle
 
@@ -295,10 +311,10 @@ uvicorn main:app --reload --port 5000
 
 Bu proje eğitim amaçlı geliştirilmiştir - Kocaeli Üniversitesi.
 
-## 👥 Ekip
+## 👥 İletişim
 
-- Backend & Optimization
-- Frontend & UI/UX
+📧 **Email:** ozdmromer24@gmail.com
+📱 **Telefon:** 05334486424
 
 ---
 
