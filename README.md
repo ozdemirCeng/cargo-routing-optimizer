@@ -26,6 +26,36 @@ Bu proje, Kocaeli ili içindeki 12 ilçeye kargo dağıtımı yapan bir sistemi 
 | **Routing**   | OSRM (Self-hosted)                     |
 | **Container** | Docker, Docker Compose                 |
 
+## 🖼️ Ekran Görüntüleri
+
+### Admin Paneli
+
+#### Dashboard
+![Admin Dashboard](screenshots/admin-dashboard.png)
+
+#### Rota Planlama
+![Admin Rota Planlama](screenshots/admin-rota-planlama.png)
+
+#### Analiz Raporu
+![Admin Analiz Raporu](screenshots/admin-analiz-raporu.png)
+
+#### Araçlar
+![Admin Araclar](screenshots/admin-araclar.png)
+
+#### Kargo Siparişleri
+![Admin Kargo Siparisleri](screenshots/admin-kargo-siparisleri.png)
+
+#### Seferler
+![Admin Seferler](screenshots/admin-seferler.png)
+
+#### Parametreler
+![Admin Parametreler](screenshots/admin-parametreler.png)
+
+### Kullanıcı Paneli
+
+#### Kargolarım
+![User Kargolarim](screenshots/user-kargolarim.png)
+
 ## 🚀 Hızlı Başlangıç
 
 ### Gereksinimler
